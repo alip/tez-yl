@@ -11,11 +11,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20151213114227) do
+ActiveRecord::Schema.define(version: 20151213114623) do
 
   create_table "book_paragraphs", force: :cascade do |t|
     t.integer  "book_section_id"
-    t.integer  "index"
+    t.integer  "location"
     t.text     "content"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
@@ -25,7 +25,7 @@ ActiveRecord::Schema.define(version: 20151213114227) do
 
   create_table "book_parts", force: :cascade do |t|
     t.integer  "book_id"
-    t.integer  "index"
+    t.integer  "location"
     t.text     "content"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -35,7 +35,7 @@ ActiveRecord::Schema.define(version: 20151213114227) do
 
   create_table "book_sections", force: :cascade do |t|
     t.integer  "book_part_id"
-    t.integer  "index"
+    t.integer  "location"
     t.text     "content"
     t.datetime "created_at",   null: false
     t.datetime "updated_at",   null: false
@@ -45,7 +45,7 @@ ActiveRecord::Schema.define(version: 20151213114227) do
 
   create_table "book_sentences", force: :cascade do |t|
     t.integer  "book_paragraph_id"
-    t.integer  "index"
+    t.integer  "location"
     t.text     "content"
     t.datetime "created_at",        null: false
     t.datetime "updated_at",        null: false

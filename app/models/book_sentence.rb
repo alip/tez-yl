@@ -4,7 +4,7 @@
 #
 #  id                :integer          not null, primary key
 #  book_paragraph_id :integer
-#  index             :integer
+#  location          :integer
 #  content           :text
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
