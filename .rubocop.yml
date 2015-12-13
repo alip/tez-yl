@@ -1,0 +1,61 @@
+AllCops:
+  Exclude:
+    - db/**/*
+    - script/**/*
+    - config/initializers/secret_token.rb
+    - config/initializers/devise.rb
+
+Encoding:
+  Enabled: false
+
+LineLength:
+  Max: 121
+
+HashSyntax:
+  Enabled: false
+
+TrailingBlankLines:
+  Enabled: false
+
+EmptyLinesAroundBody:
+  Enabled: false
+
+EmptyLines:
+  Enabled: false
+
+SpaceBeforeBlockBraces:
+  Enabled: false
+
+SpaceInsideBlockBraces:
+  Enabled: false
+
+SpaceInsideHashLiteralBraces:
+  Enabled: false
+
+WordArray:
+  Enabled: false
+
+NumericLiterals:
+  Enabled: false
+
+BlockNesting:
+  Enabled: false
+
+MethodLength:
+  Enabled: false
+
+# Missing top-level class / module documentation
+Documentation:
+  Enabled: false
+
+# do not force single line if usage
+IfUnlessModifier:
+  Enabled: false
+
+# Class definition length
+ClassLength:
+  Enabled: false
+
+
+
+
