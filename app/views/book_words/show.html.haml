@@ -1,0 +1,15 @@
+%p#notice= notice
+
+%p
+  %b Content:
+  = @book_word.content
+%p
+  %b Lemma:
+  = @book_word.lemma
+%p
+  %b Pos:
+  = @book_word.pos
+
+= link_to 'Edit', edit_book_word_path(@book_word)
+\|
+= link_to 'Back', book_words_path

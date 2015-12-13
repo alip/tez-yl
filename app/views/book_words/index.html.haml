@@ -1,0 +1,25 @@
+%h1 Listing book_words
+
+%table
+  %thead
+    %tr
+      %th Content
+      %th Lemma
+      %th Pos
+      %th
+      %th
+      %th
+
+  %tbody
+    - @book_words.each do |book_word|
+      %tr
+        %td= book_word.content
+        %td= book_word.lemma
+        %td= book_word.pos
+        %td= link_to 'Show', book_word
+        %td= link_to 'Edit', edit_book_word_path(book_word)
+        %td= link_to 'Destroy', book_word, :method => :delete, :data => { :confirm => 'Are you sure?' }
+
+%br
+
+= link_to 'New Book word', new_book_word_path

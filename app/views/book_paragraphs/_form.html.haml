@@ -1,0 +1,19 @@
+= form_for @book_paragraph do |f|
+  - if @book_paragraph.errors.any?
+    #error_explanation
+      %h2= "#{pluralize(@book_paragraph.errors.count, "error")} prohibited this book_paragraph from being saved:"
+      %ul
+        - @book_paragraph.errors.full_messages.each do |msg|
+          %li= msg
+
+  .field
+    = f.label :book_section
+    = f.text_field :book_section
+  .field
+    = f.label :index
+    = f.number_field :index
+  .field
+    = f.label :content
+    = f.text_area :content
+  .actions
+    = f.submit 'Save'

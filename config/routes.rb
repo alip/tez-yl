@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  resources :book_words
+  resources :book_sentences
+  resources :book_paragraphs
+  resources :book_sections
+  resources :book_parts
+  resources :books
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
 

@@ -1,0 +1,25 @@
+%h1 Listing book_paragraphs
+
+%table
+  %thead
+    %tr
+      %th Book section
+      %th Index
+      %th Content
+      %th
+      %th
+      %th
+
+  %tbody
+    - @book_paragraphs.each do |book_paragraph|
+      %tr
+        %td= book_paragraph.book_section
+        %td= book_paragraph.index
+        %td= book_paragraph.content
+        %td= link_to 'Show', book_paragraph
+        %td= link_to 'Edit', edit_book_paragraph_path(book_paragraph)
+        %td= link_to 'Destroy', book_paragraph, :method => :delete, :data => { :confirm => 'Are you sure?' }
+
+%br
+
+= link_to 'New Book paragraph', new_book_paragraph_path

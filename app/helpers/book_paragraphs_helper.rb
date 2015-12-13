@@ -1,0 +1,2 @@
+module BookParagraphsHelper
+end

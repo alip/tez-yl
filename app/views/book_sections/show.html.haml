@@ -1,0 +1,15 @@
+%p#notice= notice
+
+%p
+  %b Book part:
+  = @book_section.book_part
+%p
+  %b Index:
+  = @book_section.index
+%p
+  %b Content:
+  = @book_section.content
+
+= link_to 'Edit', edit_book_section_path(@book_section)
+\|
+= link_to 'Back', book_sections_path
