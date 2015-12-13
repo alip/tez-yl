@@ -67,8 +67,8 @@ gem 'will_paginate'
 gem 'nilify_blanks'
 
 # Filters!
-gem 'will_filter'
-gem 'kaminari'
+#gem 'will_filter'
+#gem 'kaminari'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console

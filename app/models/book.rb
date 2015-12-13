@@ -14,4 +14,16 @@
 #
 
 class Book < ActiveRecord::Base
+  has_many :book_parts
+
+  scope :in_language, ->(language) { where(:language => language.to_s) }
+  scope :with_translator, ->(translator) {
+    case translator
+    when /.*?(cel[aâ]l)|([üu]ster).*/i; t = 'Celâl Üster'
+    when /.*?(nuran)|(akg[oö]ren).*/i;  t = 'Nuran Akgören'
+    when /.*?(michael)|(walter).*/i;    t = 'Michael Walter'
+    else;                               t = nil
+    end
+    where(:translator => t)
+  }
 end
