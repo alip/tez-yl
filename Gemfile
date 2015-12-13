@@ -67,8 +67,9 @@ gem 'will_paginate'
 gem 'nilify_blanks'
 
 # Filters!
-#gem 'will_filter'
-#gem 'kaminari'
+gem 'datagrid'
+gem 'font-awesome-rails'
+gem 'kaminari'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
@@ -119,4 +120,6 @@ group :development do
 
   # Has and belongs to many generator
   gem 'habtm_generator'
+
+  gem 'html2haml'
 end

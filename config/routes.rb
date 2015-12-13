@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   resources :book_words
-  resources :book_sentences
+  resources :book_sentences, :only =>[:index]
   resources :book_paragraphs
   resources :book_sections
   resources :book_parts

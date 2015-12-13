@@ -1,0 +1,5 @@
+<%= datagrid_form_for @grid, :method => :get, :url => book_sentences_path %>
+
+<%= will_paginate(@grid.assets) %>
+<%= datagrid_table @grid %>
+<%= will_paginate(@grid.assets) %>
