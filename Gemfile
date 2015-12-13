@@ -32,6 +32,40 @@ gem 'sdoc', '~> 0.4.0', group: :doc
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 
+# Forms made easy!
+gem 'simple_form'
+gem 'localized_country_select', '>= 0.9.8'
+
+# Markup
+gem 'haml-rails', '>= 0.3.4'
+
+# Thin web server
+gem 'thin'
+
+# Object#andand
+gem 'andand'
+
+# jQuery UI for the Rails 3.1+ asset pipeline
+# TODO: Add required specific modules to application.js
+# https://github.com/joliss/jquery-ui-rails/README.md says:
+# "The jQuery UI code weighs 51KB (minified + gzipped) and takes a while to
+# execute, so for production apps it's recommended to only include the modules
+# that your application actually uses. Dependencies are automatically resolved."
+gem 'jquery-ui-rails'
+
+# jquery-datatables gem for rails
+gem 'jquery-datatables-rails'
+
+# A ruby gem that uses the Rails asset pipeline to include the jScrollPane plugin by Kelvin Luck
+gem 'jscrollpane-rails'
+
+# Pagination
+gem 'will_paginate'
+
+# Provides a framework for saving incoming blank values as nil in the database
+# in instances where you'd rather use DB NULL than simply a blank string.
+gem 'nilify_blanks'
+
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug'
@@ -43,5 +77,39 @@ group :development do
 
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   gem 'spring'
-end
 
+  # Annotate ActiveRecord models as a gem
+  # Note: the beta version has better rails support than the stable 2.5.0
+  # (See lib/tasks/auto_annotate_models.rake)
+  gem 'annotate'
+
+  gem 'better_errors'
+  # better_errors optional dependency (REPL, local/instance variable inspection, pretty stack frame names)
+  gem 'binding_of_caller'
+
+  # Help to kill N+1 queries and unused eager loading
+  gem 'bullet'
+
+  # Static analysis security scanner for Ruby on Rails
+  # http://brakemanscanner.org/docs/options/
+  gem 'brakeman'
+
+  # Catches mail and serves it through a dream (!)
+  # Run mailcatcher, set your favourite app to deliver to smtp://127.0.0.1:1025
+  # instead of your default SMTP server, then check out http://127.0.0.1:1080
+  # to see the mail that's arrived so far.
+  gem 'mailcatcher'
+
+  # Mutes assets pipeline log messages.
+  gem 'quiet_assets'
+
+  # Static code analyzer, syntax checker, code style checker and basic cyclometic complexity analyzer
+  gem 'rubocop'
+
+  # Code sad.ist tools
+  gem 'flog'
+  gem 'flay'
+
+  # Rails codemetric tools
+  gem 'rails_best_practices'
+end
