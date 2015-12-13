@@ -112,4 +112,7 @@ group :development do
 
   # Rails codemetric tools
   gem 'rails_best_practices'
+
+  # Has and belongs to many generator
+  gem 'habtm_generator'
 end

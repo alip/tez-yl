@@ -93,6 +93,8 @@ GEM
       sexp_processor (~> 4.4)
     globalid (0.3.6)
       activesupport (>= 4.1.0)
+    habtm_generator (0.3)
+      activerecord
     haml (4.0.7)
       tilt
     haml-rails (0.9.0)
@@ -281,6 +283,7 @@ DEPENDENCIES
   coffee-rails (~> 4.1.0)
   flay
   flog
+  habtm_generator
   haml-rails (>= 0.3.4)
   jbuilder (~> 2.0)
   jquery-datatables-rails
