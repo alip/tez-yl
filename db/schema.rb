@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20151213114623) do
+ActiveRecord::Schema.define(version: 20151213120558) do
 
   create_table "book_paragraphs", force: :cascade do |t|
     t.integer  "book_section_id"
@@ -19,6 +19,7 @@ ActiveRecord::Schema.define(version: 20151213114623) do
     t.text     "content"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
+    t.text     "raw_content"
   end
 
   add_index "book_paragraphs", ["book_section_id"], name: "index_book_paragraphs_on_book_section_id"
@@ -49,6 +50,7 @@ ActiveRecord::Schema.define(version: 20151213114623) do
     t.text     "content"
     t.datetime "created_at",        null: false
     t.datetime "updated_at",        null: false
+    t.text     "raw_content"
   end
 
   add_index "book_sentences", ["book_paragraph_id"], name: "index_book_sentences_on_book_paragraph_id"
@@ -64,8 +66,9 @@ ActiveRecord::Schema.define(version: 20151213114623) do
     t.string   "content"
     t.string   "lemma"
     t.string   "pos"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at",  null: false
+    t.datetime "updated_at",  null: false
+    t.text     "raw_content"
   end
 
   create_table "books", force: :cascade do |t|
@@ -76,6 +79,7 @@ ActiveRecord::Schema.define(version: 20151213114623) do
     t.text     "content"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string   "language"
   end
 
 end

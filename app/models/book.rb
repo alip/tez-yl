@@ -10,6 +10,7 @@
 #  content    :text
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  language   :string
 #
 
 class Book < ActiveRecord::Base
