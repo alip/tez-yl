@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+input=$(cat)
+
+echo -e "\e[01;32m$(cut -d'|' -f1 <<<"${input}")\e[00m"
+echo -e "\e[01;33m$(cut -d'|' -f2 <<<"${input}")\e[00m"

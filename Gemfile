@@ -12,7 +12,7 @@ gem 'uglifier', '>= 1.3.0'
 # Use CoffeeScript for .coffee assets and views
 gem 'coffee-rails', '~> 4.1.0'
 # See https://github.com/rails/execjs#readme for more supported runtimes
-# gem 'therubyracer', platforms: :ruby
+gem 'therubyracer', platforms: :ruby
 
 # Use jquery as the JavaScript library
 gem 'jquery-rails'
@@ -61,6 +61,7 @@ gem 'jscrollpane-rails'
 
 # Pagination
 gem 'will_paginate'
+gem 'will-paginate-i18n'
 
 # Provides a framework for saving incoming blank values as nil in the database
 # in instances where you'd rather use DB NULL than simply a blank string.
@@ -121,5 +122,8 @@ group :development do
   # Has and belongs to many generator
   gem 'habtm_generator'
 
+  # Utilities
   gem 'html2haml'
+  gem 'table_print'
+  gem 'word_wrap'
 end

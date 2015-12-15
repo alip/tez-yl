@@ -19,6 +19,7 @@ class BookSentence < ActiveRecord::Base
   has_and_belongs_to_many :book_words
   belongs_to :book_paragraph
 
+  scope :in_section, -> (section_id) { includes(:book_paragraph).where(:book_section_id => section_id) }
   scope :in_language, -> (language) { includes(:book_paragraph => {:book_section => {:book_part => [:book]}}).where(:books => {:language => language.to_s}) }
   scope :with_translator, -> (translator) {
     case translator

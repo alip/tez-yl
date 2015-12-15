@@ -1,0 +1,22 @@
+tr:
+  datagrid:
+    no_results:
+      "&mdash;&mdash;"
+    table:
+      order:
+        asc: "&uarr;"
+        desc: "&darr;"
+      no_columns: "Seçili sütun yok"
+    form:
+      search: "Ara"
+      reset: "Sıfırla"
+    filters:
+      xboolean:
+        "yes": "Evet"
+        "no": "Hayır"
+      dynamic:
+        operations:
+          ">=": "&ge;"
+          "<=": "&le;"
+          "=": "="
+          "=~": "&asymp;"
