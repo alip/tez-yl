@@ -15,13 +15,6 @@
 class BookWord < ActiveRecord::Base
   has_and_belongs_to_many :book_sentences
 
-  scope :in_language, -> (language) { includes(:book_sentences => [{:book_paragraph => {:book_section => {:book_part => [:book]}}}]).where(:books => {:language => language.to_s})}
-  scope :with_translator, -> (translator) {
-    case translator
-    when /.*?(cel[aâ]l)|([üu]ster).*/i; t = 'Celâl Üster'
-    when /.*?(nuran)|(akg[oö]ren).*/i;  t = 'Nuran Akgören'
-    when /.*?(michael)|(walter).*/i;    t = 'Michael Walter'
-    else;                               t = nil
-    end
-    includes(:book_sentences => [:book_paragraph => {:book_section => {:book_part => [:book]}}]).where(:books => {:translator => t}) }
+  scope :in, -> (language) { includes(:book_sentences => [{:book_paragraph => {:book_section => {:book_part => [:book]}}}]).where(:books => Book.query_in(language)) }
+  scope :by, -> (author_or_translator) { includes(:book_sentences => [:book_paragraph => {:book_section => {:book_part => [:book]}}]).where(:books => Book.query_by(author_or_translator)) }
 end
