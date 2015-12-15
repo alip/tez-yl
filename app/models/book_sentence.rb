@@ -23,6 +23,15 @@ class BookSentence < ActiveRecord::Base
   scope :by, -> (author_or_translator) { includes(:book_paragraph => {:book_section => {:book_part => [:book]}}).where(:books => Book.query_by(author_or_translator)) }
   scope :in_section, -> (section_id) { includes(:book_paragraph).where(:book_section_id => section_id) }
 
+  def source(options = {})
+    options[:only] ||= nil # :content, :raw_content
+    sources = BookSentencesSentence.where(:target_id => id).order(:source_id => :asc).select(:source_id).map(&:source_id)
+    return nil if sources.blank?
+
+    r = BookSentence.where(:id => sources).select(options[:only].nil? ? '*' : options[:only])
+    options[:only].nil? ? r : r.map(&:"#{options[:only]}")
+  end
+
   def pretty_location
     sprintf('%02d.%02d.%02d.%02d',
             book_part.location,
