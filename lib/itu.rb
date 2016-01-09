@@ -81,6 +81,8 @@ module Itu
             oh[:input] = input
           }
           response = post('/SimpleApi', :body => request_args)
+          raise ArgumentError, "Invalid input for #{meth}: #{input.inspect}" if response =~ /Invalid parameter/i
+
           case meth
           when :pipelineFormal #, :pipelineNoisy
             Array.new.tap do |a|
