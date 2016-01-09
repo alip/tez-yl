@@ -13,6 +13,10 @@ gem 'uglifier', '>= 1.3.0'
 gem 'coffee-rails', '~> 4.1.0'
 # See https://github.com/rails/execjs#readme for more supported runtimes
 gem 'therubyracer', platforms: :ruby
+# Compass & foundation
+gem 'compass-rails', github: 'Compass/compass-rails', branch: 'master'
+gem 'foundation-rails'
+gem 'foundation-icons-sass-rails'
 
 # Use jquery as the JavaScript library
 gem 'jquery-rails'
@@ -42,8 +46,18 @@ gem 'haml-rails', '>= 0.3.4'
 # Thin web server
 gem 'thin'
 
+# .env (rjb requires JAVA_HOME in .env so we set require here)
+gem 'dotenv-rails', :require => 'dotenv/rails-now'
+
+# Party!
+gem 'httparty'
+
 # Object#andand
 gem 'andand'
+
+# Stanford POS Tagger
+gem 'rjb'
+# gem 'ruby-nlp', :github => 'tiendung/ruby-nlp'
 
 # jQuery UI for the Rails 3.1+ asset pipeline
 # TODO: Add required specific modules to application.js
@@ -71,6 +85,9 @@ gem 'nilify_blanks'
 gem 'datagrid'
 gem 'font-awesome-rails'
 gem 'kaminari'
+
+# Levenshtein distance
+gem 'levenshtein-distance'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
@@ -123,7 +140,10 @@ group :development do
   gem 'habtm_generator'
 
   # Utilities
+  gem 'ansi'
   gem 'html2haml'
+  gem 'terminal-table'
   gem 'table_print'
+  gem 'tabularize'
   gem 'word_wrap'
 end
