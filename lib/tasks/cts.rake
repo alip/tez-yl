@@ -9,8 +9,8 @@ namespace :cts do
 
   desc 'Semi-automated translation alignment'
   task :align_fix => :environment do
-    source = Book.in(:english).first
-    target = Book.in(:turkish).by(:akgoren).first
+    source = Book.in_language(:english).first
+    target = Book.in_language(:turkish).with_translator('celal').first
 
     source_paragraphs = source.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
     target_paragraphs = target.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
@@ -62,8 +62,8 @@ namespace :cts do
 
   desc 'Semi-automated translation alignment'
   task :align => :environment do
-    source = Book.in(:english).first
-    target = Book.in(:turkish).by(:akgoren).first
+    source = Book.in_language(:english).first
+    target = Book.in_language(:turkish).with_translator('celal').first
 
     source_paragraphs = source.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
     target_paragraphs = target.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
@@ -72,17 +72,16 @@ namespace :cts do
     s_off = 0 # source offset
     t_off = 0 # target offset
     auto_process = false
-    last_done_process = true
     last_done = {:source_off => nil, :target_off => nil, :target_idx => nil}
     while idx < target_paragraphs.count
       source_p = source_paragraphs[idx + s_off]
       target_p = target_paragraphs[idx + t_off]
 
-      unless target_p.id >= 633 # 580 # 493 # 250 # 220 # 198
+      unless target_p.id >= 7298
         idx += 1
         next
       end
-      unless source_p.id >= 5230 # 5171 # 5080 # 4814 # 4778 # 4754
+      unless source_p.id >= 5907
         s_off += 1
         next
       end
@@ -102,10 +101,10 @@ namespace :cts do
 
       # already processed.
       all_done = {:source => true, :target => true}
-      all_done[:source] = !source_p.book_sentences.any?{|s| s.target_sentences.by(:akgoren).empty?}
-      all_done[:target] = !target_p.book_sentences.any?{|s| s.source_sentences.empty?}
+      all_done[:source] = !source_p.book_sentences.any?{|s| BookSentencesSentence.where(:source_id => s.id).count == 0}
+      all_done[:target] = !target_p.book_sentences.any?{|s| BookSentencesSentence.where(:target_id => s.id).count == 0}
 
-      if last_done_process && all_done[:source] && all_done[:target]
+      if all_done[:source] && all_done[:target]
         last_done[:target_idx] = idx
         last_done[:source_off] = s_off
         last_done[:target_off] = t_off
@@ -123,18 +122,13 @@ namespace :cts do
         puts "Kısa paragraf, otomatik eşleme kapatıldı."
       end
 
-      # Probable translations form the default mapping
-      # FIXME: does not work, mapping_default = Hash.new
-
+      `clear`
       last_idx = 0
       source_p.book_sentences.each_with_index do |sentence,idx|
         s = ["\e[01;32m#{idx}:#{sentence.id} #{sentence.content}\e[00m"]
-        #mapping_default[sentence.id] = sentence.likely_translations_in(target_p).first.andand.id
-        #s << "\e[01;34m#{mapping_default[sentence.id]}\e[00m" unless mapping_default[sentence.id].nil?
-
         if target_p.book_sentences.length > idx
           sentence = target_p.book_sentences[idx]
-          align_id = BookTranslation.where(:target_id => sentence.id).first.andand.source_id
+          align_id = BookSentencesSentence.where(:target_id => sentence.id).first.andand.source_id
           s << "\e[01;33m#{idx}:#{sentence.id}#{align_id.nil? ? '' : ":#{align_id}"} #{sentence.content}\e[00m"
         end
         puts s.join(' ')
@@ -179,15 +173,13 @@ namespace :cts do
           break
         end
 
-        last_done_process = cmd !~ /p|([st][-+])/
-
         if cmd =~ /s!/i
           puts "Kaynak metin bir sonraki hizalanmamış paragrafa kaydırılıyor..."
           auto_process = false
           off = 0
           source_paragraphs[(idx + s_off + 1)..-1].each do |p|
             off += 1
-            break if p.book_sentences.all?{|s| BookTranslation.where(:source_id => s.id).count == 0}
+            break if p.book_sentences.all?{|s| BookSentencesSentence.where(:source_id => s.id).count == 0}
           end
           puts "Kaynak metin #{off} paragraf ileri kaydırıldı."
           s_off += off
@@ -210,7 +202,7 @@ namespace :cts do
           off = 0
           target_paragraphs[(idx + t_off + 1)..-1].each do |p|
             off += 1
-            break if p.book_sentences.all?{|s| BookTranslation.where(:target_id => s.id).count == 0}
+            break if p.book_sentences.all?{|s| BookSentencesSentence.where(:target_id => s.id).count == 0}
           end
           puts "Erek metin #{off} ileri paragraf kaydırıldı."
           t_off += off
@@ -230,10 +222,6 @@ namespace :cts do
         if cmd =~ /n/i
           puts "Bir sonraki paragrafa geçiliyor."
           idx += 1
-          break
-        elsif cmd =~ /p/i
-          puts "Bir önceki paragrafa dönülüyor."
-          idx -= 1
           break
         elsif cmd =~ /q/i
           puts "Çıkılıyor."
@@ -273,7 +261,7 @@ namespace :cts do
 
         mapping.each do |source_id, target_ids|
           target_ids.each do |target_id|
-            BookTranslation.find_or_create_by(:source_id => source_id, :target_id => target_id)
+            BookSentencesSentence.find_or_create_by(:source_id => source_id, :target_id => target_id)
             puts "Kaynak cümle no:#{source_id}, hedef cümle no:#{target_id} ile hizalandı."
           end
         end

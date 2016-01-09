@@ -72,9 +72,6 @@ gem 'datagrid'
 gem 'font-awesome-rails'
 gem 'kaminari'
 
-# Levenshtein distance
-gem 'levenshtein-distance'
-
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug'
@@ -126,10 +123,7 @@ group :development do
   gem 'habtm_generator'
 
   # Utilities
-  gem 'ansi'
   gem 'html2haml'
-  gem 'terminal-table'
   gem 'table_print'
-  gem 'tabularize'
   gem 'word_wrap'
 end

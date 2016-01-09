@@ -35,14 +35,14 @@ class Book < ActiveRecord::Base
 
   def self.query_by(author_or_translator)
     k = author_or_translator.to_sym
+    fail 'Geçersiz yazar/çevirmen adı' unless Book::NAMES.key?(k)
 
-    return {:language => :english, :author => Book::NAMES[k]} if k.to_s =~ /orwell/i
-    return {:translator => Book::NAMES[k]} if Book::NAMES.include?(k)
-
-    k_match = Book::NAMES.keys.detect{|kn| k.to_s =~ /#{Book::NAMES[kn]}/i}
-    return {:translator => Book::NAMES[k_match]} unless k_match.nil?
-
-    fail 'Geçersiz yazar/çevirmen adı'
+    case k
+    when :orwell
+      {:language => :english, :author => Book::NAMES[k]}
+    else
+      {:translator => Book::NAMES[k]}
+    end
   end
 
   scope :in, ->(language) { where(**Book.query_in(language)) }

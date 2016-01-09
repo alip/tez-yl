@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20151215224310) do
+ActiveRecord::Schema.define(version: 20151213184917) do
 
   create_table "book_paragraphs", force: :cascade do |t|
     t.integer  "book_section_id"
@@ -55,19 +55,19 @@ ActiveRecord::Schema.define(version: 20151215224310) do
 
   add_index "book_sentences", ["book_paragraph_id"], name: "index_book_sentences_on_book_paragraph_id"
 
+  create_table "book_sentences_sentences", id: false, force: :cascade do |t|
+    t.integer "source_id"
+    t.integer "target_id"
+  end
+
+  add_index "book_sentences_sentences", ["source_id", "target_id"], name: "book_sentences_sentences_index", unique: true
+
   create_table "book_sentences_words", id: false, force: :cascade do |t|
     t.integer "book_sentence_id"
     t.integer "book_word_id"
   end
 
   add_index "book_sentences_words", ["book_sentence_id", "book_word_id"], name: "book_sentences_book_words_index", unique: true
-
-  create_table "book_translations", id: false, force: :cascade do |t|
-    t.integer "source_id"
-    t.integer "target_id"
-  end
-
-  add_index "book_translations", ["source_id", "target_id"], name: "book_sentences_sentences_index", unique: true
 
   create_table "book_words", force: :cascade do |t|
     t.string   "content"
