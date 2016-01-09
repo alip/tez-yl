@@ -1,0 +1,3 @@
+[submodule "lib/ruby-nlp"]
+	path = lib/ruby-nlp
+	url = git://github.com/tiendung/ruby-nlp.git
