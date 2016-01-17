@@ -29,6 +29,60 @@ class BookSentence < ActiveRecord::Base
   scope :has_words, -> (words) { joins(:book_words).where(:book_words => {:content => words}) }
   scope :has_lemmas, -> (lemmas) { joins(:book_words).where(:book_words => {:lemma => lemmas}) }
   scope :in_section, -> (section_id) { includes(:book_paragraph).where(:book_section_id => section_id) }
+  scope :not_tagged, -> { joins(:book_words).where(:book_words => {:pos => nil}) }
+
+  # Calculate Type/Token ratio
+  def ttr
+    tokens = book_words.count
+    types  = book_words.where(:pos => BookWord::POS.values.flatten).count
+
+    types.fdiv(tokens)
+  end
+
+  def aligned?
+    !sources.empty?
+  end
+
+  def tagged?
+    book_words.reject{|w| w.clean_content.nil?}.select{|w| w.pos.blank?}.empty?
+  end
+
+  def tag!
+    book_words.reject{|w| w.clean_content.nil?}.each_with_index do |word, idx|
+      puts "#{idx}: #{word.raw_content}"
+      info = tags[idx]
+
+      word.pos    = info[:pos] unless info[:pos].blank?
+      word.pos_v  = info[:pos_v].join('|') unless info[:pos_v].blank?
+      word.entity = info[:entity] unless info[:entity].blank?
+
+      unless info[:pos].blank? || info[:stem].blank?
+        word.stem  = info[:stem]
+        word.lemma = info[:pos] == 'Verb' ? info[:stem] : nil
+      end
+      word.native = info[:isturkish]
+
+      word.save! if word.changed?
+    end
+  end
+
+  def tags
+    @tags ||= Itu::Nlp.named_entities(book_words.map(&:clean_content).compact)
+  end
+
+  # Output in a format suitable for alignment with hunalign.
+  def to_hunalign
+    words = book_words.select([:id, :location, :stem]).order(:location => :asc)
+
+    # Validate correct tagging.
+    no_stem = words.select{|w| w.stem.nil?}
+    unless no_stem.empty?
+      raise RuntimeError, "Sentence #{id} has untagged words: #{no_stem.map{|w| {:id => w.id, :loc => w.location}}.inspect}"
+    end
+
+    # All OK, join and return stems.
+    words.map(&:stem).join(' ')
+  end
 
   def likely_translations_in(other_book_paragraph)
     fail 'not source' unless is_source?

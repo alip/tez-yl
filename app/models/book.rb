@@ -47,4 +47,12 @@ class Book < ActiveRecord::Base
 
   scope :in, ->(language) { where(**Book.query_in(language)) }
   scope :by, -> (author_or_translator) { where(**Book.query_by(author_or_translator)) }
+
+  # Calculate Type/Token ratio
+  def ttr
+    tokens = book_parts.joins(:book_sections => {:book_paragraphs => {:book_sentences => :book_words}}).count('distinct(book_words.id)')
+    types  = book_parts.joins(:book_sections => {:book_paragraphs => {:book_sentences => :book_words}}).where(:book_words => {:pos => BookWord::POS.values.flatten}).count('distinct(book_words.id)')
+
+    types.fdiv(tokens)
+  end
 end
