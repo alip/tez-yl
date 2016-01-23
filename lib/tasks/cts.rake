@@ -7,6 +7,18 @@ namespace :cts do
     'db:seed'
   ]
 
+  desc 'Write hunalign stem files'
+  task :prep_hunalign => :environment do
+    %i[orwell akgoren uster].each do |author|
+      File.open(Rails.root.join("align/1984-#{author}.stem").to_s, 'w') do |f|
+        BookParagraph.by(author).order(:id => :asc).includes(:book_sentences => :book_words).each do |p|
+          $stderr.puts p.id
+          f.print p.to_hunalign
+        end
+      end
+    end
+  end
+
   desc 'Graph for Type/Token ratio(s)'
   task :draw_ttr => :environment do
     Gnuplot.open do |gp|
