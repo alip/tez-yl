@@ -87,13 +87,13 @@ class BookSentence < ActiveRecord::Base
     words = book_words.select([:id, :content, :location, :stem]).order(:location => :asc)
 
     # Validate correct tagging.
-    no_stem = words.select{|w| w.stem.nil?}.reject{|w| w.content == '\\'}
+    no_stem = words.select{|w| w.stem.nil?}.reject{|w| w.clean_content.nil?}
     unless no_stem.empty?
       raise RuntimeError, "Sentence #{id} has untagged words: #{no_stem.map{|w| {:id => w.id, :loc => w.location}}.inspect}"
     end
 
     # All OK, join and return stems.
-    words.map(&:stem).join(' ')
+    words.map(&:stem).join(' ').gsub('\\', '')
   end
 
   def likely_translations_in(other_book_paragraph)
