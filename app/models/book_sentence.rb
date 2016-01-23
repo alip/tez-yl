@@ -55,6 +55,10 @@ class BookSentence < ActiveRecord::Base
     book_words.reject{|w| w.clean_content.nil?}.select{|w| w.pos.blank?}.empty?
   end
 
+  def untagged_words
+    book_words.select{|w| w.pos.blank?}
+  end
+
   def tag!
     book_words.reject{|w| w.clean_content.nil?}.each_with_index do |word, idx|
       puts "#{idx}: #{word.raw_content}"
@@ -80,10 +84,10 @@ class BookSentence < ActiveRecord::Base
 
   # Output in a format suitable for alignment with hunalign.
   def to_hunalign
-    words = book_words.select([:id, :location, :stem]).order(:location => :asc)
+    words = book_words.select([:id, :content, :location, :stem]).order(:location => :asc)
 
     # Validate correct tagging.
-    no_stem = words.select{|w| w.stem.nil?}
+    no_stem = words.select{|w| w.stem.nil?}.reject{|w| w.content == '\\'}
     unless no_stem.empty?
       raise RuntimeError, "Sentence #{id} has untagged words: #{no_stem.map{|w| {:id => w.id, :loc => w.location}}.inspect}"
     end
