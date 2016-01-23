@@ -43,10 +43,18 @@ module Itu
     def self.named_entities(input)
       self.ner(String.new.tap { |ns|
           ns << BD_TAG << "\n" << self.disambiguator(String.new.tap { |s|
-              m = self.tokenizer(self.deasciifier(input)).
-                    map { |token|
-                      self.normalize(token)
-                    }.
+              case input
+              when Enumerable # Assume tokenized.
+                tokens = input
+              when String
+                tokens = self.tokenizer(self.deasciifier(input))
+              else
+                fail "Invalid type of input: #{input.class.inspect}"
+              end
+              m = tokens.
+                    #map { |token|
+                    #  self.normalize(token)
+                    #}.
                     map { |norm_token|
                       [norm_token, self.morphanalyzer(norm_token)]
                     }
@@ -76,11 +84,17 @@ module Itu
       %i[ner morphanalyzer isturkish morphgenerator tokenizer normalize deasciifier Vowelizer DepParserFormal DepParserNoisy spellcheck disambiguator pipelineFormal pipelineNoisy].each do |meth|
         define_method meth do |input|
           request_args = ActiveSupport::OrderedHash.new.tap { |oh|
-            oh[:tool]  = meth
-            oh[:token] = api_key
-            oh[:input] = input
+            oh[:tool]    = meth
+            oh[:token]   = api_key
+            oh[:input]   = input.force_encoding('UTF-8')
           }
-          response = post('/SimpleApi', :body => request_args)
+          cache = ($ITU_NLP_DIRECT || ENV.key?('ITU_NLP_DIRECT')) ? "?nocache=1" : ""
+          t0 = Time.now
+          response = post("/SimpleApi#{cache}", :body => request_args)
+          t1 = Time.now
+          File.open(Rails.root.join('log/itu-access.log').to_s, 'a') do |f|
+            f.puts "#{meth}: #{sprintf('%.04f', t1-t0)}: #{request_args.inspect}"
+          end
           raise ArgumentError, "Invalid input for #{meth}: #{input.inspect}" if response =~ /Invalid parameter/i
 
           case meth

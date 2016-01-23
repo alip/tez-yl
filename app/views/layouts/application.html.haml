@@ -1,0 +1,43 @@
+!!!
+
+%html
+  %head
+    = render 'layouts/head'
+
+  %body
+    %header
+      .row
+        .large-6.columns
+          %ul.inline-list
+            %li
+              &nbsp;
+            %li
+              &nbsp;
+
+        .large-12.columns.text-center
+          = link_to "/" do
+            BTÇÇ - Ters Ütopya
+
+        .large-6.columns.end
+          &nbsp;
+
+    %messages
+      .row
+        .large-24.columns
+          - flash.each do |name, msg|
+            - if msg.is_a?(String)
+              - flash_name = name == :notice ? 'success' : 'alert'
+              .alert-box{'data-alert' => '', :class => flash_name}
+                = content_tag :div, msg
+                %a.close{:href => '#'}
+                  &times;
+
+    %main{:role => 'main'}
+      .row
+        .large-24.columns.end
+          = yield
+
+    %footer
+      .row
+        .large-24.columns
+          = render :partial => 'layouts/footer'

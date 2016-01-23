@@ -28,18 +28,20 @@ table.datagrid td.translator {
 	font-weight: bold;
 	font-size: 14px;
 	padding: 2px 2px;
-	width: 10%;
+	width: 6%;
 }
 
 table.datagrid td.content {
 	font-family: monospace;
-	padding: 2px 2px;
-	width: 50%;
+	margin: 0px !important;
+	padding: 0px !important;
+	width: 47%;
+	display: inline !important;
 }
 
 table.datagrid td.source {
 	font-family: monospace;
-	font-style: italic;
-	padding: 2px 2px;
-	width: 36%;
+	margin: 0px !important;
+	padding: 0px !important;
+	width: 47%;
 }

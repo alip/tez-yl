@@ -7,10 +7,176 @@ namespace :cts do
     'db:seed'
   ]
 
+  desc 'Graph for Type/Token ratio(s)'
+  task :draw_ttr => :environment do
+    Gnuplot.open do |gp|
+      Gnuplot::Plot.new(gp) do |plot|
+        plot.terminal 'png size 1024,640'
+        plot.output Rails.root.join('plot/1984-ttr.png').to_s
+
+        plot.title  '1984: Çeşit/Örnekçe Oranı'
+        plot.xlabel 'Bölüm (#)'
+        plot.ylabel 'Çeşit/Örnekçe (%)'
+
+        plot.key 'autotitle columnhead'
+        plot.xrange '[0:27]'
+        plot.yrange '[42:72]'
+        plot.xtics  '1'
+        plot.ytics  '2'
+        plot.grid
+
+        # %uster
+        %i[orwell akgoren].each do |author|
+          ttr_path = Rails.root.join("plot/1984-ttr-#{author}.dat").to_s
+          if File.exist?(ttr_path)
+            ttr = File.readlines(ttr_path).map{|line| line.strip.to_f}
+          else
+            ttr = Array.new.tap do |ta|
+              BookSection.by(author).each {|book_section|
+                ta << book_section.book_paragraphs.includes(:book_sentences).map { |book_paragraph|
+                  book_paragraph.book_sentences.includes(:book_words).
+                    map(&:ttr).
+                    inject(:+).
+                    fdiv(book_paragraph.book_sentences.count)
+                }.inject(:+).fdiv(book_section.book_paragraphs.count)
+              }
+            end
+            File.open(ttr_path, 'w') do |f|
+              f.puts ttr.map(&:to_s).join("\n")
+            end
+          end
+
+          x   = (0...ttr.count).to_a
+          y   = x.map{|v| ttr[v] * 100}
+
+          plot.data << Gnuplot::DataSet.new( [x, y] ) do |ds|
+            ds.with = 'linespoints'
+            ds.title = author.capitalize
+          end
+        end
+      end
+    end
+  end
+
+  desc 'Graph for Type/Token ratio(s)'
+  task :draw_uttr => :environment do
+    Gnuplot.open do |gp|
+      Gnuplot::Plot.new(gp) do |plot|
+        plot.terminal 'png size 1024,640'
+        plot.output Rails.root.join('plot/1984-uttr.png').to_s
+
+        plot.title  '1984: Tekil Çeşit/Örnekçe Oranı'
+        plot.xlabel 'Bölüm (#)'
+        plot.ylabel 'Tekil Çeşit/Örnekçe (%)'
+
+        plot.key 'autotitle columnhead'
+        plot.xrange '[0:27]'
+        plot.yrange '[42:72]'
+        plot.xtics  '1'
+        plot.ytics  '2'
+        plot.grid
+
+        # %uster
+        %i[orwell akgoren].each do |author|
+          ttr_path = Rails.root.join("plot/1984-uttr-#{author}.dat").to_s
+          if File.exist?(ttr_path)
+            ttr = File.readlines(ttr_path).map{|line| line.strip.to_f}
+          else
+            ttr = Array.new.tap do |ta|
+              BookSection.by(author).each {|book_section|
+                ta << book_section.book_paragraphs.includes(:book_sentences).map { |book_paragraph|
+                  book_paragraph.book_sentences.includes(:book_words).
+                    map(&:uttr).
+                    inject(:+).
+                    fdiv(book_paragraph.book_sentences.count)
+                }.inject(:+).fdiv(book_section.book_paragraphs.count)
+              }
+            end
+            File.open(ttr_path, 'w') do |f|
+              f.puts ttr.map(&:to_s).join("\n")
+            end
+          end
+
+          x   = (0...ttr.count).to_a
+          y   = x.map{|v| ttr[v] * 100}
+
+          plot.data << Gnuplot::DataSet.new( [x, y] ) do |ds|
+            ds.with = 'linespoints'
+            ds.title = author.capitalize
+          end
+        end
+      end
+    end
+  end
+
+  desc 'NER + POS + Stem for Turkish words using ITU NLP tools service'
+  task :tag_turkish_words => :environment do
+    total = BookSentence.in(:turkish).by(:akgoren).where('book_sentences.id > 2903').count
+    p     = ProgressBar.create(:title => 'ITU', :starting_at => 1, :total => total,
+                               :format => "%a %e %P% Tamamlanan: %c Toplam: %C")
+    BookSentence.in(:turkish).by(:akgoren).where('book_sentences.id > 2903').order(:id => :asc).each_with_index do |book_sentence, idx|
+      book_words      = book_sentence.book_words.sort_by{|x| x.location}
+      begin
+        tagged_sentence = Itu::Nlp.cts_pipeline(book_words.map(&:raw_content))
+      rescue ArgumentError => e
+        File.open(Rails.root.join('log/turkish-tag.log').to_s, 'a') do |f|
+          f.puts "Invalid #{book_sentence.id} #{book_sentence.raw_content}"
+        end
+        next
+      end
+
+      if book_words.count != tagged_sentence.length
+        File.open(Rails.root.join('log/turkish-tag.log').to_s, 'a') do |f|
+          f.puts "Mismatch: #{book_sentence.id} #{book_words.count} != #{tagged_sentence.length}"
+        end
+        next
+      end
+
+      book_words.each_with_index do |word, idx|
+        info = tagged_sentence[idx]
+
+        word.pos    = info[:pos] unless info[:pos].blank?
+        word.pos_v  = info[:pos_v].join('|') unless info[:pos_v].blank?
+        word.entity = info[:entity] unless info[:entity].blank?
+        unless info[:pos].blank? || info[:stem].blank?
+          word.stem  = info[:stem]
+          word.lemma = info[:pos] == 'Verb' ? info[:stem] : nil
+        end
+        #word.native = info[:isturkish]
+        word.save!
+        p.refresh
+      end
+      p.log "[#{idx+1}/#{total} #{total - (idx + 1)} left] #{book_sentence.id}: #{book_sentence.raw_content}"
+      p.increment
+    end
+  end
+
+  desc 'Stem English words using NLTK Porter Stemmer'
+  task :stem_english_words => :environment do
+    porter = Stemmer::Porter.new
+
+    total = BookWord.in(:english).count
+    BookWord.in(:english).order(:id => :asc).each_with_index do |book_word, idx|
+      # Clean content
+      content = book_word.raw_content.gsub('\\', '').gsub('*', '').gsub('’', "'").gsub('‘', "'")
+      if content.include?('—')
+        stem = content.split('—').map{|word|
+          porter.stem(word)
+        }.join('-')
+      else
+        stem = porter.stem(book_word.raw_content)
+      end
+      next if stem.blank?
+      book_word.stem = stem
+      book_word.save
+      puts "[#{idx+1}/#{total} #{total - (idx + 1)} left] #{book_word.id}: #{book_word.raw_content} -> #{book_word.stem}"
+    end
+  end
+
   desc 'Semi-automated translation alignment'
   task :align_fix => :environment do
-    source = Book.in_language(:english).first
-    target = Book.in_language(:turkish).with_translator('celal').first
+    source = Book.in(:english).first
+    target = Book.in(:turkish).by(:akgoren).first
 
     source_paragraphs = source.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
     target_paragraphs = target.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
@@ -62,8 +228,8 @@ namespace :cts do
 
   desc 'Semi-automated translation alignment'
   task :align => :environment do
-    source = Book.in_language(:english).first
-    target = Book.in_language(:turkish).with_translator('celal').first
+    source = Book.in(:english).first
+    target = Book.in(:turkish).by(:akgoren).first
 
     source_paragraphs = source.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
     target_paragraphs = target.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
@@ -72,16 +238,17 @@ namespace :cts do
     s_off = 0 # source offset
     t_off = 0 # target offset
     auto_process = false
+    last_done_process = true
     last_done = {:source_off => nil, :target_off => nil, :target_idx => nil}
     while idx < target_paragraphs.count
       source_p = source_paragraphs[idx + s_off]
       target_p = target_paragraphs[idx + t_off]
 
-      unless target_p.id >= 7298
+      unless target_p.id >= 633 # 580 # 493 # 250 # 220 # 198
         idx += 1
         next
       end
-      unless source_p.id >= 5907
+      unless source_p.id >= 5230 # 5171 # 5080 # 4814 # 4778 # 4754
         s_off += 1
         next
       end
@@ -101,10 +268,10 @@ namespace :cts do
 
       # already processed.
       all_done = {:source => true, :target => true}
-      all_done[:source] = !source_p.book_sentences.any?{|s| BookSentencesSentence.where(:source_id => s.id).count == 0}
-      all_done[:target] = !target_p.book_sentences.any?{|s| BookSentencesSentence.where(:target_id => s.id).count == 0}
+      all_done[:source] = !source_p.book_sentences.any?{|s| s.target_sentences.by(:akgoren).empty?}
+      all_done[:target] = !target_p.book_sentences.any?{|s| s.source_sentences.empty?}
 
-      if all_done[:source] && all_done[:target]
+      if last_done_process && all_done[:source] && all_done[:target]
         last_done[:target_idx] = idx
         last_done[:source_off] = s_off
         last_done[:target_off] = t_off
@@ -122,13 +289,18 @@ namespace :cts do
         puts "Kısa paragraf, otomatik eşleme kapatıldı."
       end
 
-      `clear`
+      # Probable translations form the default mapping
+      # FIXME: does not work, mapping_default = Hash.new
+
       last_idx = 0
       source_p.book_sentences.each_with_index do |sentence,idx|
         s = ["\e[01;32m#{idx}:#{sentence.id} #{sentence.content}\e[00m"]
+        #mapping_default[sentence.id] = sentence.likely_translations_in(target_p).first.andand.id
+        #s << "\e[01;34m#{mapping_default[sentence.id]}\e[00m" unless mapping_default[sentence.id].nil?
+
         if target_p.book_sentences.length > idx
           sentence = target_p.book_sentences[idx]
-          align_id = BookSentencesSentence.where(:target_id => sentence.id).first.andand.source_id
+          align_id = BookTranslation.where(:target_id => sentence.id).first.andand.source_id
           s << "\e[01;33m#{idx}:#{sentence.id}#{align_id.nil? ? '' : ":#{align_id}"} #{sentence.content}\e[00m"
         end
         puts s.join(' ')
@@ -173,13 +345,15 @@ namespace :cts do
           break
         end
 
+        last_done_process = cmd !~ /p|([st][-+])/
+
         if cmd =~ /s!/i
           puts "Kaynak metin bir sonraki hizalanmamış paragrafa kaydırılıyor..."
           auto_process = false
           off = 0
           source_paragraphs[(idx + s_off + 1)..-1].each do |p|
             off += 1
-            break if p.book_sentences.all?{|s| BookSentencesSentence.where(:source_id => s.id).count == 0}
+            break if p.book_sentences.all?{|s| BookTranslation.where(:source_id => s.id).count == 0}
           end
           puts "Kaynak metin #{off} paragraf ileri kaydırıldı."
           s_off += off
@@ -202,7 +376,7 @@ namespace :cts do
           off = 0
           target_paragraphs[(idx + t_off + 1)..-1].each do |p|
             off += 1
-            break if p.book_sentences.all?{|s| BookSentencesSentence.where(:target_id => s.id).count == 0}
+            break if p.book_sentences.all?{|s| BookTranslation.where(:target_id => s.id).count == 0}
           end
           puts "Erek metin #{off} ileri paragraf kaydırıldı."
           t_off += off
@@ -222,6 +396,10 @@ namespace :cts do
         if cmd =~ /n/i
           puts "Bir sonraki paragrafa geçiliyor."
           idx += 1
+          break
+        elsif cmd =~ /p/i
+          puts "Bir önceki paragrafa dönülüyor."
+          idx -= 1
           break
         elsif cmd =~ /q/i
           puts "Çıkılıyor."
@@ -261,7 +439,7 @@ namespace :cts do
 
         mapping.each do |source_id, target_ids|
           target_ids.each do |target_id|
-            BookSentencesSentence.find_or_create_by(:source_id => source_id, :target_id => target_id)
+            BookTranslation.find_or_create_by(:source_id => source_id, :target_id => target_id)
             puts "Kaynak cümle no:#{source_id}, hedef cümle no:#{target_id} ile hizalandı."
           end
         end

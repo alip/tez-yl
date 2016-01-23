@@ -1,0 +1,16 @@
+global: &global
+  adapter:   mysql2
+  encoding:  utf8
+  reconnect: false
+  pool:      5
+  socket:    /var/run/mysqld/mysqld.sock
+  username:  cts
+  password:  cts
+
+development:
+  <<      :  *global
+  database:  cts
+
+production:
+  <<      :  *global
+  database:  cts

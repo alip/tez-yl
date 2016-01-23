@@ -32,11 +32,19 @@ class BookSentence < ActiveRecord::Base
   scope :not_tagged, -> { joins(:book_words).where(:book_words => {:pos => nil}) }
 
   # Calculate Type/Token ratio
-  def ttr
-    tokens = book_words.count
-    types  = book_words.where(:pos => BookWord::POS.values.flatten).count
+  def ttr(options = {:unique => false})
+    count_arg = "distinct(book_words.#{options[:unique] ? 'content' : 'id'})"
+
+    tokens = tt[:tokens].count
+    types  = tt[:types].count(count_arg)
 
     types.fdiv(tokens)
+  end
+  def uttr; ttr(:unique => true); end
+
+  def tt
+    @tt ||= {:types  => book_words.where(:pos => BookWord::POS.values.flatten),
+             :tokens => book_words}
   end
 
   def aligned?

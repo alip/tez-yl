@@ -10,6 +10,10 @@
 #  updated_at  :datetime         not null
 #  raw_content :text
 #  location    :integer
+#  stem        :string
+#  pos_v       :string
+#  entity      :string
+#  native      :boolean
 #
 
 require 'test_helper'

@@ -4,7 +4,9 @@ class BookParagraphsController < ApplicationController
   # GET /book_paragraphs
   # GET /book_paragraphs.json
   def index
-    @book_paragraphs = BookParagraph.all
+    @grid = BookParagraphsGrid.new(params[:book_paragraphs_grid]) do |scope|
+      scope.page(params[:page])
+    end
   end
 
   # GET /book_paragraphs/1

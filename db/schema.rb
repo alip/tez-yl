@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20151213184917) do
+ActiveRecord::Schema.define(version: 20160109170518) do
 
   create_table "book_paragraphs", force: :cascade do |t|
     t.integer  "book_section_id"
@@ -55,19 +55,27 @@ ActiveRecord::Schema.define(version: 20151213184917) do
 
   add_index "book_sentences", ["book_paragraph_id"], name: "index_book_sentences_on_book_paragraph_id"
 
-  create_table "book_sentences_sentences", id: false, force: :cascade do |t|
-    t.integer "source_id"
-    t.integer "target_id"
-  end
-
-  add_index "book_sentences_sentences", ["source_id", "target_id"], name: "book_sentences_sentences_index", unique: true
-
   create_table "book_sentences_words", id: false, force: :cascade do |t|
     t.integer "book_sentence_id"
     t.integer "book_word_id"
   end
 
   add_index "book_sentences_words", ["book_sentence_id", "book_word_id"], name: "book_sentences_book_words_index", unique: true
+
+  create_table "book_translations", id: false, force: :cascade do |t|
+    t.integer "source_id"
+    t.integer "target_id"
+  end
+
+  add_index "book_translations", ["source_id", "target_id"], name: "book_sentences_sentences_index", unique: true
+
+  create_table "book_word_dependencies", id: false, force: :cascade do |t|
+    t.integer "dependency"
+    t.integer "related_id"
+    t.integer "relater_id"
+  end
+
+  add_index "book_word_dependencies", ["dependency", "related_id", "relater_id"], name: "book_word_dependencies_index", unique: true
 
   create_table "book_words", force: :cascade do |t|
     t.string   "content"
@@ -77,6 +85,10 @@ ActiveRecord::Schema.define(version: 20151213184917) do
     t.datetime "updated_at",  null: false
     t.text     "raw_content"
     t.integer  "location"
+    t.string   "stem"
+    t.string   "pos_v"
+    t.string   "entity"
+    t.boolean  "native"
   end
 
   create_table "books", force: :cascade do |t|

@@ -1,0 +1,60 @@
+/*
+ *
+ * Foundation overrides and our custom global variables go here
+ *
+ */
+
+// global variables
+$rosepink: #ED2A62;
+$global-radius: 5px;
+
+
+// foundation overrides
+// $em-base: 16px !default;
+$row-width: 1038px;
+$total-columns: 24;
+
+//Topbar Changes
+$anchor-font-color-hover: #ed2a62;
+$primary-color: #808284;
+$topbar-bg-color: #fff;
+$topbar-link-color: #808284;
+$topbar-link-font-size: 24px;
+$topbar-link-font-family: "menu";
+$topbar-link-color-hover: #89d4df;
+$topbar-link-bg-hover: #fff;
+$topbar-dropdown-link-color: #808284;
+
+//Dropdown Changes
+$f-dropdown-bg: #faf8f9;
+$f-dropdown-triangle-color: #faf8f9;
+$f-dropdown-border-width: 0px;
+$f-dropdown-margin-top: 10px;
+$f-dropdown-triangle-size: 10px;
+
+//Form Elements
+$input-border-width:0px;
+$input-box-shadow: none;
+$form-label-bottom-margin: 5px;
+$input-font-family: medium;
+$input-bg-color: #f4f5f7;
+$select-bg-color: #f4f5f7;
+
+//Button
+$button-font-family: medium;
+$button-font-sml: 15px;
+
+//Reveal Modal
+$reveal-close-top: -10px;
+$reveal-close-side: -10px;
+
+//Fonts
+$h6-font-size: 18px;
+
+//Breadcrumbs
+$crumb-border-size: 0px;
+$crumb-slash: " ";
+$crumb-font-color-current: #fff;
+$crumb-font-size: 19px;
+$crumb-padding: 6px 0px 0px 0px;
+@import 'foundation';

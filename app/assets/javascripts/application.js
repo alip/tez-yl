@@ -14,5 +14,15 @@
 //= require jquery
 //= require jquery-ui
 //= require jquery_ujs
+//= require jquery.jscrollpane
 //= require turbolinks
-//= require_tree .
+//= require foundation
+//= require vendor/modernizr
+//= require dataTables/jquery.dataTables
+//= require dataTables/jquery.dataTables.api.fnReloadAjax
+//= require dataTables/jquery.dataTables.foundation
+//= require main
+
+$(function(){
+  $(document).foundation();
+});

@@ -23,11 +23,19 @@ class BookParagraph < ActiveRecord::Base
   scope :by, ->(author_or_translator) { includes(:book_section => {:book_part => [:book]}).where(:books => Book.query_by(author_or_translator)) }
 
   # Calculate Type/Token ratio
-  def ttr
-    tokens = book_sentences.joins(:book_words).count('distinct(book_words.id)')
-    types  = book_sentences.joins(:book_words).where(:book_words => {:pos => BookWord::POS.values.flatten}).count('distinct(book_words.id)')
+  def ttr(options = {:unique => false})
+    count_arg = "distinct(book_words.#{options[:unique] ? 'content' : 'id'})"
+
+    tokens = tt[:tokens].count
+    types  = tt[:types].count(count_arg)
 
     types.fdiv(tokens)
+  end
+  def uttr; ttr(:unique => true); end
+
+  def tt
+    @tt ||= {:types  => book_sentences.joins(:book_words).where(:book_words => {:pos => BookWord::POS.values.flatten}),
+             :tokens => book_sentences.joins(:book_words)}
   end
 
   # Output in a format suitable for alignment with hunalign.

@@ -1,0 +1,20 @@
+= simple_form_for @grid, :method => :get, :url => book_sentences_path do |f|
+  = f.error_notification
+
+  .row
+    .large-4.columns
+      = f.datagrid_filter :translator
+    .large-6.columns.end
+      = f.datagrid_filter :sentmod
+  .row
+    .large-6.columns
+      = f.text_field :target_search, :placeholder => 'Erek Metin Ara'
+    .large-6.columns.end
+      = f.text_field :source_search, :placeholder => 'Kaynak Metin Ara'
+
+  .row
+    .large-2.columns
+      = f.submit I18n.t('datagrid.form.search').html_safe, :class => 'datagrid-submit'
+    .large-2.columns.end
+      - empty_parameter = Rails.version >= '4.1.0' && Rails.version <= '4.1.2' ? nil : {}
+      = link_to I18n.t('datagrid.form.reset').html_safe, url_for(@grid.to_param => empty_parameter), :class => 'datagrid-reset'

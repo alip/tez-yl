@@ -3,8 +3,6 @@ source 'https://rubygems.org'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '4.2.5'
-# Use sqlite3 as the database for Active Record
-gem 'sqlite3'
 # Use SCSS for stylesheets
 gem 'sass-rails', '~> 5.0'
 # Use Uglifier as compressor for JavaScript assets
@@ -49,15 +47,31 @@ gem 'thin'
 # .env (rjb requires JAVA_HOME in .env so we set require here)
 gem 'dotenv-rails', :require => 'dotenv/rails-now'
 
+# Use MySQL as the database for Active Record
+gem 'mysql2'
+
 # Party!
 gem 'httparty'
+
+# Graphs
+gem 'ruby-graphviz', '~> 1.2', '>= 1.2.2'
+gem 'gnuplot', '~> 2.6', '>= 2.6.2'
 
 # Object#andand
 gem 'andand'
 
+# Dictionary
+gem 'bilisim_sozlugu'
+
 # Stanford POS Tagger
 gem 'rjb'
 # gem 'ruby-nlp', :github => 'tiendung/ruby-nlp'
+
+# Neat progressbar
+gem 'ruby-progressbar'
+
+# Dump in yaml
+gem 'yaml_db'
 
 # jQuery UI for the Rails 3.1+ asset pipeline
 # TODO: Add required specific modules to application.js

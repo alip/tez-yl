@@ -1,0 +1,13 @@
+/[if lt IE 9 ] <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+
+%meta{:charset => 'utf-8' }
+%meta{'http-equiv' => 'X-UA-Compatible', :content => 'IE=Edge,chrome=1'}
+%meta{:name => 'viewport', :content => 'width=device-width, initial-scale=1.0'}
+
+%title
+  = content_for?(:title) ? yield(:title) : 'Ters Ütopya'
+
+= stylesheet_link_tag 'application'
+= javascript_include_tag 'application'
+= favicon_link_tag 'favicon.png', :type => 'image/png'
+= csrf_meta_tag
