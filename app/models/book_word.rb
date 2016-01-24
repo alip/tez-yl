@@ -2,18 +2,19 @@
 #
 # Table name: book_words
 #
-#  id          :integer          not null, primary key
-#  content     :string
-#  lemma       :string
-#  pos         :string
-#  created_at  :datetime         not null
-#  updated_at  :datetime         not null
-#  raw_content :text
-#  location    :integer
-#  stem        :string
-#  pos_v       :string
-#  entity      :string
-#  native      :boolean
+#  id           :integer          not null, primary key
+#  content      :string(255)
+#  lemma        :string(255)
+#  pos          :string(255)
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  raw_content  :text(65535)
+#  location     :integer
+#  stem         :string(255)
+#  pos_v        :string(255)
+#  entity       :string(255)
+#  native       :boolean
+#  auto_content :text(65535)
 #
 
 class BookWord < ActiveRecord::Base
@@ -34,6 +35,14 @@ class BookWord < ActiveRecord::Base
   has_many :relaters, :class_name => 'BookWordDependency', :foreign_key => :related_id
   has_many :related_words, :through => :relateds
   has_many :relater_words, :through => :relaters
+
+  def root
+    verb? ? self.lemma : self.stem
+  end
+
+  def verb?
+    POS[:verb].include?(self.pos)
+  end
 
   def clean_content
     cc = raw_content.gsub('\\', '').tr('“”', '""')

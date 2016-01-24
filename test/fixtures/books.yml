@@ -3,14 +3,14 @@
 # Table name: books
 #
 #  id         :integer          not null, primary key
-#  path       :string
-#  title      :string
-#  author     :string
-#  translator :string
-#  content    :text
+#  path       :string(255)
+#  title      :string(255)
+#  author     :string(255)
+#  translator :string(255)
+#  content    :text(65535)
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
-#  language   :string
+#  language   :string(255)
 #
 
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html

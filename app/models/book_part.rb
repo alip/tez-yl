@@ -5,7 +5,7 @@
 #  id         :integer          not null, primary key
 #  book_id    :integer
 #  location   :integer
-#  content    :text
+#  content    :text(65535)
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #
@@ -16,7 +16,7 @@
 
 class BookPart < ActiveRecord::Base
   belongs_to :book
-  has_many :book_sections
+  has_many :book_sections, :dependent => :destroy
 
   scope :in, -> (language) { includes(:book).where(:books => Book.query_in(language)) }
   scope :by, ->(author_or_translator) { includes(:book).where(:books => Book.query_by(author_or_translator)) }

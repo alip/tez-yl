@@ -20,7 +20,7 @@ class BookSentencesGrid
   filter(:translator, :enum,
          :prompt => '-- Çevirmen --',
          :select => Book::TRANSLATORS.values) do |name|
-           q = Book.query_by(Book::TRANSLATORS.first{|k,v| name == v}.first)
+           q = Book.query_by(Book::TRANSLATORS.detect{|k,v| name == v}.first)
            where(:books => q, :books_book_parts => q)
          end
   filter(:target_search, :string,
@@ -99,8 +99,14 @@ class BookSentencesGrid
          end
 =end
 
-  column(:translator, :header => 'Çevirmen')
+  column(:align, :header => 'Eş') do |model|
+    "<input name='align-#{model.id}' value='#{model.sources.map(&:source_id).join(' ')}'></input>"
+  end
+
+  # column(:translator, :header => 'Çevirmen')
   column(:content, :header => 'Erek Metin') do |model|
+    "#{model.id}: #{model.raw_content}"
+=begin
     colours = COLOURS.cycle
     String.new.tap do |s|
       s << "<ol>"
@@ -110,10 +116,22 @@ class BookSentencesGrid
       end
       s << "</ol>"
     end
+=end
   end
   column(:source, :header => 'Kaynak Metin') do |model|
     colours = COLOURS.cycle
     String.new.tap do |s|
+      s << "<ul>"
+      model.source_sentences.each do |source_sentence|
+        t = source_sentence.raw_content
+        s << "<li style='list-style: none;background-color:##{colours.next}'> #{source_sentence.id}: " << t.gsub('\\', '') << "</li>"
+      end
+      s << "</ul>"
+    end
+
+=begin
+    colours = COLOURS.cycle
+    String.new.tap do |s|
       s << "<ol>"
       model.book_paragraph.book_sentences.each do |target_sentence|
         t = target_sentence.raw_content
@@ -121,6 +139,7 @@ class BookSentencesGrid
       end
       s << "</ol>"
     end
+=end
   end
 
 =begin

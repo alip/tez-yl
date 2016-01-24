@@ -5,10 +5,10 @@
 #  id              :integer          not null, primary key
 #  book_section_id :integer
 #  location        :integer
-#  content         :text
+#  content         :text(65535)
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
-#  raw_content     :text
+#  raw_content     :text(65535)
 #
 # Indexes
 #
@@ -17,7 +17,7 @@
 
 class BookParagraph < ActiveRecord::Base
   belongs_to :book_section
-  has_many :book_sentences
+  has_many :book_sentences, :dependent => :destroy
 
   scope :in, -> (language) { includes(:book_section => {:book_part => [:book]}).where(:books => Book.query_in(language)) }
   scope :by, ->(author_or_translator) { includes(:book_section => {:book_part => [:book]}).where(:books => Book.query_by(author_or_translator)) }
@@ -41,7 +41,7 @@ class BookParagraph < ActiveRecord::Base
   # Output in a format suitable for alignment with hunalign.
   def to_hunalign
     String.new.tap do |s|
-      s << "<p>\n" << book_sentences.order(:location => :asc).map(&:to_hunalign).join("\n")
+      s << book_sentences.order(:location => :asc).map(&:to_hunalign).join("\n")
     end
   end
 

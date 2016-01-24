@@ -3,24 +3,27 @@
 # Table name: books
 #
 #  id         :integer          not null, primary key
-#  path       :string
-#  title      :string
-#  author     :string
-#  translator :string
-#  content    :text
+#  path       :string(255)
+#  title      :string(255)
+#  author     :string(255)
+#  translator :string(255)
+#  content    :text(65535)
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
-#  language   :string
+#  language   :string(255)
 #
 
 class Book < ActiveRecord::Base
-  has_many :book_parts
+  has_many :book_parts, :dependent => :destroy
 
   NAMES = {:orwell  => 'George Orwell',
+           :huxley  => 'Aldous Huxley',
            :uster   => 'Celâl Üster',
            :akgoren => 'Nuran Akgören',
+           :tosun   => 'Ümit Tosun',
            :walter  => 'Michael Walter'}.freeze
-  TRANSLATORS = NAMES.reject{|k,v| k == :orwell}.freeze
+  AUTHORS     = NAMES.select{|k,v| %i[orwell huxley].include?(k)}.freeze
+  TRANSLATORS = NAMES.reject{|k,v| %i[orwell huxley].include?(k)}.freeze
 
   LANGUAGES = {:english => 'İngilizce',
                :german  => 'Almanca',
@@ -36,7 +39,7 @@ class Book < ActiveRecord::Base
   def self.query_by(author_or_translator)
     k = author_or_translator.to_sym
 
-    return {:language => :english, :author => Book::NAMES[k]} if k.to_s =~ /orwell/i
+    return {:language => :english, :author => Book::NAMES[k]} if AUTHORS.key?(k)
     return {:translator => Book::NAMES[k]} if Book::NAMES.include?(k)
 
     k_match = Book::NAMES.keys.detect{|kn| k.to_s =~ /#{Book::NAMES[kn]}/i}

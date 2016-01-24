@@ -103,6 +103,9 @@ gem 'kaminari'
 # Levenshtein distance
 gem 'levenshtein-distance'
 
+# Google translate
+gem 'google-translate'
+
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug'

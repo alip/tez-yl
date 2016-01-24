@@ -5,10 +5,10 @@
 #  id              :integer          not null, primary key
 #  book_section_id :integer
 #  location        :integer
-#  content         :text
+#  content         :text(65535)
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
-#  raw_content     :text
+#  raw_content     :text(65535)
 #
 # Indexes
 #

@@ -5,10 +5,11 @@
 #  id                :integer          not null, primary key
 #  book_paragraph_id :integer
 #  location          :integer
-#  content           :text
+#  content           :text(65535)
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
-#  raw_content       :text
+#  raw_content       :text(65535)
+#  auto_content      :text(65535)
 #
 # Indexes
 #
@@ -17,7 +18,7 @@
 
 class BookSentence < ActiveRecord::Base
   belongs_to :book_paragraph
-  has_and_belongs_to_many :book_words
+  has_and_belongs_to_many :book_words, :dependent => :destroy
 
   has_many :sources, :class_name => 'BookTranslation', :foreign_key => :target_id
   has_many :targets, :class_name => 'BookTranslation', :foreign_key => :source_id
@@ -30,6 +31,12 @@ class BookSentence < ActiveRecord::Base
   scope :has_lemmas, -> (lemmas) { joins(:book_words).where(:book_words => {:lemma => lemmas}) }
   scope :in_section, -> (section_id) { includes(:book_paragraph).where(:book_section_id => section_id) }
   scope :not_tagged, -> { joins(:book_words).where(:book_words => {:pos => nil}) }
+
+  def translate!(translator)
+    return nil unless self.auto_content.nil?
+    self.auto_content = translator.translate(content)
+    save!
+  end
 
   # Calculate Type/Token ratio
   def ttr(options = {:unique => false})
@@ -84,7 +91,7 @@ class BookSentence < ActiveRecord::Base
 
   # Output in a format suitable for alignment with hunalign.
   def to_hunalign
-    words = book_words.select([:id, :content, :location, :stem]).order(:location => :asc)
+    words = book_words.select([:id, :content, :raw_content, :location, :stem]).order(:location => :asc)
 
     # Validate correct tagging.
     no_stem = words.select{|w| w.stem.nil?}.reject{|w| w.clean_content.nil?}
@@ -93,7 +100,7 @@ class BookSentence < ActiveRecord::Base
     end
 
     # All OK, join and return stems.
-    words.map(&:stem).join(' ').gsub('\\', '')
+    words.map(&:stem).join(' ').gsub(' \\ ', ' ').gsub('\\', '').gsub(/\*([^*]+)\*/, '\1')
   end
 
   def likely_translations_in(other_book_paragraph)

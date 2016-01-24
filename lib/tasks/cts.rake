@@ -7,13 +7,143 @@ namespace :cts do
     'db:seed'
   ]
 
+  desc 'Apply heuristic align'
+  task :apply_heuristic => :environment do
+    mx = BookSentence.by(:akgoren).joins(:sources).select(:id).to_a.map(&:id)
+    tx = BookSentence.by(:akgoren).where.not(:id => mx)
+
+    tx.each do |t|
+      before = BookSentence.by(:akgoren).joins(:sources).where(['book_sentences.id < ?', t.id]).order(:id => :desc).first
+      after  = BookSentence.by(:akgoren).joins(:sources).where(['book_sentences.id > ?', t.id]).order(:id => :desc).first
+
+      before_paragraph = before.source_sentences.order(:id).first.book_paragraph_id
+      after_paragraph  = after.source_sentences.order(:id => :desc).first.book_paragraph_id
+
+      sources = BookSentence.by(:orwell).includes(:target_sentences).where(['book_paragraph_id >= ? and book_paragraph_id <= ?', before_paragraph, after_paragraph])
+
+      # trx = t.auto_content.split(/\b/).map(&:strip).reject(&:blank?).reject{|x| x !~ /\w/}.map(&:downcase).join(' ')
+      srx = sources.sort_by{|x|
+        content = x.auto_content.split(/\b/).map(&:strip).reject(&:blank?).reject{|x| x !~ /\w/}.map(&:downcase).join(' ')
+        targets = [t]
+        unless x.target_sentences.blank?
+          targets |= x.target_sentences
+        end
+        targets.sort_by!(&:id)
+        target_content = targets.map{|tx| tx.content.andand.split(/\b/).andand.map(&:strip).andand.reject(&:blank?).andand.reject{|x| x !~ /\w/}.andand.map(&:downcase)}.flatten.compact.join(' ')
+
+        content.ld(target_content)
+      }.take(3)
+      byebug
+    end
+  end
+
+  desc 'Check and apply bleualign generated alignments'
+  task :apply_bleualign => :environment do
+    src = Rails.root.join('bleu/1984-align-s').to_s
+    dst = Rails.root.join('bleu/1984-align-t').to_s
+
+  tsd = Hash.new.tap do |h|
+    ss = File.readlines(src).map(&:strip)
+    ts = File.readlines(dst).map(&:strip)
+
+    ss.each_with_index do |rs, idx|
+      sid = rs.split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
+      tid = ts[idx].split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
+
+      sid.compact.each do |ssid|
+        h[ssid] ||= Array.new
+        h[ssid] |= tid.compact
+      end
+    end
+  end.each do |k,v|
+      next unless k >= 18708
+      next unless v.sort.reverse.first >= 3791
+      s = BookSentence.find(k)
+      t = v.map{|tid| BookSentence.find(tid)}
+      #next unless s.targets.blank?
+      #next unless s.sources.blank?
+
+      t.each do |tt|
+        puts "\e[01;32m#{s.id}: #{s.content}\e[00m\e[01;33m\n#{tt.id}: #{tt.raw_content}\e[00m"
+        cmd = 'e'
+        if cmd =~ /h/i
+          next
+        elsif cmd =~ /e/i || cmd.blank?
+          BookTranslation.find_or_create_by(:source_id => s.id, :target_id => tt.id)
+          puts "Kaynak cümle no:#{s.id}, hedef cümle no:#{tt.id} ile hizalandı."
+        end
+      end
+    end
+  end
+
+  desc 'Prepare bleualign inputs'
+  task :prepare_bleualign => :environment do
+    %i[orwell akgoren].each do |author|
+      text = Rails.root.join("bleu/1984-#{author}.#{author == :orwell ? 'en' : 'tr'}").to_s
+      auto = "#{text}.auto"
+
+      ftext = File.open(text, 'w')
+      fauto = File.open(auto, 'w')
+      begin
+        BookSection.by(author).order(:id => :asc).includes(:book_paragraphs => :book_sentences).each do |book_section|
+          book_section.book_paragraphs.order(:id => :asc).each do |book_paragraph|
+            book_paragraph.book_sentences.order(:id => :asc).select([:raw_content, :auto_content]).each do |book_sentence|
+              ftext.puts book_sentence.raw_content
+              fauto.puts book_sentence.auto_content
+              $stderr.print '.'
+            end
+          end
+          ftext.puts '.EOA'
+          fauto.puts '.EOA'
+        end
+      ensure
+        ftext.close
+        fauto.close
+      end
+    end
+  end
+
+  desc 'Verify hunalign alignments'
+  task :check_hunalign => :environment do
+    data = File.readlines('/tmp/align.text').map{|s| data = s.strip.split("\t") ; {:confidence => data[-1].to_f, :source => data[1].split(' ~~~ '), :target => data[0].split(' ~~~ ')}}
+    source_offset = 0
+    target_offset = 0
+
+    data.each do |item|
+      item[:target].each_with_index do |ts, idx|
+        ssdb = BookSentence.by(:orwell).limit(1).offset(source_offset + idx).first
+        tsid = BookSentence.by(:uster).limit(1).offset(target_offset + idx).select(:id).first.id
+
+        if ssdb.targets.map(&:target_id).include?(tsid)
+          puts "#{ssdb.id} <-> #{tsid} OK (confidence: #{item[:confidence]})"
+        else
+          puts "#{ssdb.id} <-> #{tsid} NOT OK (confidence: #{item[:confidence]})"
+        end
+      end
+      source_offset += item[:source].length
+      target_offset += item[:target].length
+    end
+  end
+
   desc 'Write hunalign stem files'
   task :prep_hunalign => :environment do
-    %i[orwell akgoren uster].each do |author|
-      File.open(Rails.root.join("align/1984-#{author}.stem").to_s, 'w') do |f|
-        BookParagraph.by(author).order(:id => :asc).includes(:book_sentences => :book_words).each do |p|
-          $stderr.puts p.id
-          f.print p.to_hunalign
+    %i[orwell uster akgoren].each do |author|
+      path = Rails.root.join("align/1984-#{author}.stem").to_s
+      unless File.exist?(path)
+        File.open(path, 'w') do |f|
+          BookParagraph.by(author).order(:id => :asc).includes(:book_sentences => :book_words).each do |p|
+            $stderr.puts p.id
+            f.puts p.to_hunalign
+          end
+        end
+      end
+
+      path = Rails.root.join("align/1984-#{author}.raw").to_s
+      unless File.exist?(path)
+        File.open(path, 'w') do |f|
+          BookSentence.by(author).order(:id => :asc).select(:raw_content).each do |s|
+            f.puts s.raw_content
+          end
         end
       end
     end
@@ -246,6 +376,30 @@ namespace :cts do
     source_paragraphs = source.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
     target_paragraphs = target.book_parts.order(:id => :asc).map{|part| part.book_sections.order(:id => :asc).map{|section| section.book_paragraphs.order(:id => :asc)}}.flatten(3)
 
+    # Prepare hunalign data for calibration.
+    hunalign_raw = File.readlines(Rails.root.join('align/akgoren-align.text').to_s).map{|s| data = s.strip.split("\t") ; {:confidence => data[-1].to_f, :source => data[1].split(' ~~~ '), :target => data[0].split(' ~~~ ')}}
+    hunalign = Hash.new.tap do |h|
+      sids = BookSentence.by(:orwell).order(:id => :asc).select(:id).map(&:id)
+      tids = BookSentence.by(:akgoren).order(:id => :asc).select(:id).map(&:id)
+
+      source_offset = 0
+      target_offset = 0
+
+      hunalign_raw.each do |item|
+        item[:target].each_with_index do |ts, idx|
+          tsid = tids[target_offset + idx]
+
+          item[:source].each_with_index do |ss, ss_idx|
+            ssid = sids[source_offset + ss_idx]
+            h[ssid] ||= Array.new
+            h[ssid] << tsid
+          end
+        end
+        source_offset += item[:source].length
+        target_offset += item[:target].length
+      end
+    end
+
     idx = 0
     s_off = 0 # source offset
     t_off = 0 # target offset
@@ -256,11 +410,11 @@ namespace :cts do
       source_p = source_paragraphs[idx + s_off]
       target_p = target_paragraphs[idx + t_off]
 
-      unless target_p.id >= 633 # 580 # 493 # 250 # 220 # 198
+      unless target_p.id >= 764 # 762 # 633 # 580 # 493 # 250 # 220 # 198
         idx += 1
         next
       end
-      unless source_p.id >= 5230 # 5171 # 5080 # 4814 # 4778 # 4754
+      unless source_p.id >= 5366 # 5364 # 5230 # 5171 # 5080 # 4814 # 4778 # 4754
         s_off += 1
         next
       end
@@ -300,20 +454,25 @@ namespace :cts do
         auto_process = false
         puts "Kısa paragraf, otomatik eşleme kapatıldı."
       end
+      auto_process = false # past bleualign
 
       # Probable translations form the default mapping
       # FIXME: does not work, mapping_default = Hash.new
 
       last_idx = 0
       source_p.book_sentences.each_with_index do |sentence,idx|
-        s = ["\e[01;32m#{idx}:#{sentence.id} #{sentence.content}\e[00m"]
+        s = ["\e[01;32m#{idx}:#{sentence.id} #{sentence.content}#{hunalign[sentence.id].blank? ? '' : " h#{hunalign[sentence.id].sort.join(',')}"}\e[00m"]
         #mapping_default[sentence.id] = sentence.likely_translations_in(target_p).first.andand.id
         #s << "\e[01;34m#{mapping_default[sentence.id]}\e[00m" unless mapping_default[sentence.id].nil?
 
         if target_p.book_sentences.length > idx
           sentence = target_p.book_sentences[idx]
           align_id = BookTranslation.where(:target_id => sentence.id).first.andand.source_id
-          s << "\e[01;33m#{idx}:#{sentence.id}#{align_id.nil? ? '' : ":#{align_id}"} #{sentence.content}\e[00m"
+          if align_id.nil?
+            s << "\e[01;33m#{idx}:#{sentence.id}#{align_id.nil? ? '' : ":#{align_id}"} #{sentence.content}\e[00m"
+          else
+            s << "\e[01;35m#{idx}:#{sentence.id}#{align_id.nil? ? '' : ":#{align_id}"} #{sentence.content}\e[00m"
+          end
         end
         puts s.join(' ')
         last_idx = idx
@@ -327,7 +486,7 @@ namespace :cts do
         if auto_process && source_p.book_sentences.count == target_p.book_sentences.count
           cmd = 'a'
         else
-          puts "Hizalama: hizalama için no(,no...):no(,no...), atlamak için n, birebir eşleme için a, çıkmak için ise q"
+          puts "Hizalama: hizalama için no(,no...):no(,no...), atlamak için n, birebir eşleme için a, hunalign eşleme için h, çıkmak için ise q"
           puts "kaynak metni bir paragraf ileri/geri kaydırmak için s+/s-, ve erek metni bir paragraf ileri/geri kaydırmak için t+/t-"
           puts "kaynak metni sonraki hizalanmamış paragrafa kaydırmak için s!, erek metni sonraki hizalanmamış paragrafa kaydırmak için t!"
           puts "ileri/geri kaydırmaları sıfırlamak ve en son iki yönlü hizalaması bitmiş çifte dönmek için r"
@@ -429,9 +588,12 @@ namespace :cts do
             target_ids = match[2].gsub(/\s+/, '').split(',').map(&:to_i)
 
             if source_ids.count == 1
-              src_id = source_p.book_sentences[source_ids.first].id
+              src_id = source_p.book_sentences[source_ids.first].id rescue nil
+              if src_id.nil?
+                src_id = source_ids.first
+              end
               h[src_id] ||= Set.new
-              h[src_id] |= target_ids.map{|i| target_p.book_sentences[i].id}
+              h[src_id] |= target_ids.map{|i| x = target_p.book_sentences[i].id rescue nil; x.nil? ? i : x}
             elsif target_ids.count == 1
               source_ids.each do |source_id|
                 src_id = source_p.book_sentences[source_id].id
@@ -441,12 +603,14 @@ namespace :cts do
             end
           end
 
+=begin
           (0...source_p.book_sentences.length).each do |i|
             src_id = source_p.book_sentences[i].id
             next if h.key?(src_id)
             next if target_p.book_sentences[i].nil?
             h[src_id] = Set.new([target_p.book_sentences[i].id])
           end
+=end
         end
 
         mapping.each do |source_id, target_ids|

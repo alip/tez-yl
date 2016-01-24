@@ -5,7 +5,7 @@
 #  id           :integer          not null, primary key
 #  book_part_id :integer
 #  location     :integer
-#  content      :text
+#  content      :text(65535)
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #

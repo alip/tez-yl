@@ -24,6 +24,13 @@ table.datagrid td.location {
 	width: 4%;
 }
 
+table.datagrid td.align {
+	margin: 0px;
+	padding: 0px;
+	font-size: 12px;
+	width: 16%;
+}
+
 table.datagrid td.translator {
 	font-weight: bold;
 	font-size: 14px;
@@ -35,7 +42,7 @@ table.datagrid td.content {
 	font-family: monospace;
 	margin: 0px !important;
 	padding: 0px !important;
-	width: 47%;
+	width: 37%; /* before align width: 47%; */
 	display: inline !important;
 }
 
@@ -43,5 +50,5 @@ table.datagrid td.source {
 	font-family: monospace;
 	margin: 0px !important;
 	padding: 0px !important;
-	width: 47%;
+	width: 37%; /* before align width: 47%; */
 }
