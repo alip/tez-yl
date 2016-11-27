@@ -6,7 +6,7 @@ Local variables:
 %>
 <%= form_tag('/book_sentences') do %>
   <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-  <%= submit_tag('Eşle') %>
+  <%# submit_tag('Eşle') %>
   <% if grid.html_columns(*options[:columns]).any? %>
     <%= content_tag :table, options[:html] do %>
       <thead>
@@ -23,4 +23,5 @@ Local variables:
   <% else -%>
     <%= I18n.t("datagrid.table.no_columns").html_safe %>
   <% end %>
+  <%# submit_tag('Eşle') %>
 <% end %>

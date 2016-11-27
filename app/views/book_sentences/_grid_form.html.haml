@@ -3,14 +3,27 @@
 
   .row
     .large-4.columns
+      Çevirmen: &nbsp;&nbsp;
       = f.datagrid_filter :translator
-    .large-6.columns.end
+    .large-6.columns
       = f.datagrid_filter :sentmod
+    .large-6.columns.end
+      Kaymalar: &nbsp;&nbsp;
+      = f.datagrid_filter :shift
   .row
     .large-6.columns
       = f.text_field :target_search, :placeholder => 'Erek Metin Ara'
     .large-6.columns.end
       = f.text_field :source_search, :placeholder => 'Kaynak Metin Ara'
+
+  -#
+    .large-2.text-center.columns
+      Kayma:
+  -#
+      .large-3.text-center.columns
+        Tür/Terimce:
+      .large-4.columns.end
+        = f.datagrid_filter :pos
 
   .row
     .large-2.columns

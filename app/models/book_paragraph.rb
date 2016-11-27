@@ -23,15 +23,20 @@ class BookParagraph < ActiveRecord::Base
   scope :by, ->(author_or_translator) { includes(:book_section => {:book_part => [:book]}).where(:books => Book.query_by(author_or_translator)) }
 
   # Calculate Type/Token ratio
-  def ttr(options = {:unique => false})
-    count_arg = "distinct(book_words.#{options[:unique] ? 'content' : 'id'})"
-
-    tokens = tt[:tokens].count
-    types  = tt[:types].count(count_arg)
-
-    types.fdiv(tokens)
+  def tokens(unique: false)
+    r = book_sentences.map(&:tokens).flatten
+    #unique ? BookWord.uniq(r, :stem => true) : r
   end
-  def uttr; ttr(:unique => true); end
+
+  def types(unique: false)
+    r = tokens.select(&:type?)
+    unique ? BookWord.uniq(r, :stem => true) : r
+  end
+
+  def type_token_ratio(unique: false)
+    token_count = tokens(unique: unique).count
+    token_count == 0 ? 0 : types(:unique => unique).count.fdiv(token_count)
+  end
 
   def tt
     @tt ||= {:types  => book_sentences.joins(:book_words).where(:book_words => {:pos => BookWord::POS.values.flatten}),

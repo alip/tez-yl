@@ -1,4 +1,5 @@
 require 'rjb'
+
 Rjb::load(%w[stanford-postagger.jar stanford-ner.jar].map{|jar| Rails.root.join("lib/ruby-nlp/#{jar}")}.join(":"), ['-Xmx256m'])
 CRFClassifier = Rjb::import('edu.stanford.nlp.ie.crf.CRFClassifier')
 
@@ -7,6 +8,12 @@ MaxentTagger.init(Rails.root.join('lib/ruby-nlp/left3words-wsj-0-18.tagger').to_
 
 Sentence      = Rjb::import('edu.stanford.nlp.ling.Sentence')
 
+#LexicalizedParser = Rjb::import('edu.stanford.nlp.parser.lexparser.LexicalizedParser')
+#LexicalizedParser.loadModel('edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz',
+#                            '-maxLength', '80', '-retainTmpSubcategories')
+#
+
+# StanfordCoreNLP.use :english # :german
 module Stanford
   class Nlp
     def initialize

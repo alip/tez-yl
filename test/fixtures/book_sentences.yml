@@ -10,6 +10,13 @@
 #  updated_at        :datetime         not null
 #  raw_content       :text(65535)
 #  auto_content      :text(65535)
+#  translator        :string(255)
+#  language          :string(255)
+#  author            :string(255)
+#  shifts            :integer
+#  flags             :integer
+#  ttr_section       :integer
+#  ttr_subsection    :integer
 #
 # Indexes
 #

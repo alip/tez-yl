@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160123114403) do
+ActiveRecord::Schema.define(version: 20160622045656) do
 
   create_table "book_paragraphs", force: :cascade do |t|
     t.integer  "book_section_id", limit: 4
@@ -52,16 +52,16 @@ ActiveRecord::Schema.define(version: 20160123114403) do
     t.datetime "updated_at",                      null: false
     t.text     "raw_content",       limit: 65535
     t.text     "auto_content",      limit: 65535
+    t.string   "translator",        limit: 255
+    t.string   "language",          limit: 255
+    t.string   "author",            limit: 255
+    t.integer  "shifts",            limit: 4
+    t.integer  "flags",             limit: 4
+    t.integer  "ttr_section",       limit: 4
+    t.integer  "ttr_subsection",    limit: 4
   end
 
   add_index "book_sentences", ["book_paragraph_id"], name: "index_book_sentences_on_book_paragraph_id", using: :btree
-
-  create_table "book_sentences_words", id: false, force: :cascade do |t|
-    t.integer "book_sentence_id", limit: 4
-    t.integer "book_word_id",     limit: 4
-  end
-
-  add_index "book_sentences_words", ["book_sentence_id", "book_word_id"], name: "book_sentences_book_words_index", unique: true, using: :btree
 
   create_table "book_translations", id: false, force: :cascade do |t|
     t.integer "source_id", limit: 4
@@ -78,20 +78,34 @@ ActiveRecord::Schema.define(version: 20160123114403) do
 
   add_index "book_word_dependencies", ["dependency", "related_id", "relater_id"], name: "book_word_dependencies_index", unique: true, using: :btree
 
-  create_table "book_words", force: :cascade do |t|
-    t.string   "content",      limit: 255
-    t.string   "lemma",        limit: 255
-    t.string   "pos",          limit: 255
-    t.datetime "created_at",                 null: false
-    t.datetime "updated_at",                 null: false
-    t.text     "raw_content",  limit: 65535
-    t.integer  "location",     limit: 4
-    t.string   "stem",         limit: 255
-    t.string   "pos_v",        limit: 255
-    t.string   "entity",       limit: 255
-    t.boolean  "native"
-    t.text     "auto_content", limit: 65535
+  create_table "book_word_translations", id: false, force: :cascade do |t|
+    t.integer "source_id", limit: 4
+    t.integer "target_id", limit: 4
   end
+
+  add_index "book_word_translations", ["source_id", "target_id"], name: "book_word_translations_index", unique: true, using: :btree
+
+  create_table "book_words", force: :cascade do |t|
+    t.string   "content",          limit: 255
+    t.string   "lemma",            limit: 255
+    t.string   "pos",              limit: 255
+    t.datetime "created_at",                                     null: false
+    t.datetime "updated_at",                                     null: false
+    t.text     "raw_content",      limit: 65535
+    t.integer  "location",         limit: 4
+    t.string   "stem",             limit: 255
+    t.string   "pos_v",            limit: 255
+    t.string   "entity",           limit: 255
+    t.boolean  "native"
+    t.text     "auto_content",     limit: 65535
+    t.integer  "book_sentence_id", limit: 4
+    t.boolean  "stop_word",                      default: false
+    t.boolean  "new_speak",                      default: false
+    t.boolean  "new_naming",                     default: false
+    t.boolean  "new_abbreviation",               default: false
+  end
+
+  add_index "book_words", ["book_sentence_id"], name: "index_book_words_on_book_sentence_id", using: :btree
 
   create_table "books", force: :cascade do |t|
     t.string   "path",       limit: 255
@@ -104,4 +118,5 @@ ActiveRecord::Schema.define(version: 20160123114403) do
     t.string   "language",   limit: 255
   end
 
+  add_foreign_key "book_words", "book_sentences"
 end

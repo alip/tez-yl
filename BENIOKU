@@ -1,0 +1,45 @@
+## Yüksek Lisans Tezi Bütünce Araştırması Kaynak Kodu
+
+Kod ağacı, yüksek lisans tezimde yaptığım bütünce temelli çeviri araştırması
+için yazdığım program kodlarını içerir. Dosya başlığında aksi belirtilmeyen
+bütün dosyalar GNU Kamu Lisansı'yla (sürüm 3 veya gönlünüze göre daha ileri
+bir sürümü) yayınlanmıştır. Kısacası özgür yazılımdır.
+
+Kısıtlı zaman başta olmakla birlikte kişisel sebeplerden ötürü kod göze hitap
+etmemektedir ve yalnızca kısıtlı bir görsel arayüze sahiptir. Yazar, kodu
+yalnızca konsol üzerinden kullanmıştır, görsel bir arayüz yazmaya başladıysa da
+bunu henüz tamamlayamamıştır. Bununla birlikte zaman bulduğunda (bir başka
+bahara ve/ya da doktora tezine) arayüzü bitirmenin hayalini kurmaktadır.
+Elbette konu ters distopyadır, dolayısıyla yüksek olasılıkla hayaller gerçek
+olmayacaktır.
+
+Kodun kullanılabilir, çekip çıkartılabilir, ilgi çekici kısımlarını sıralamak gerekirse:
+
+* `lib/itu.rb`: İTÜ doğal dil servislerine erişim için Ruby kodu. `ITU_API_KEY`
+ortam değerini İTÜ ile iletişime geçerek temin etmelisiniz. Servisi yormamak
+için istekleri yerelimde nginx ile önbellekte tuttum (s/local/edu.tr/).
+
+* `lib/stanford.rb`: Stanford CoreNLP için Ruby kodu. Java köprüsü üzerinden
+Ruby ile iletişime geçer. Yalnızca işime yarayan kısıtlı bir kısım yazılmıştır.
+
+* `lib/stemmer.rb`: NLTK'nin kelime ayrıştırıcılarıyla iletişim için basit
+köprü kodu. `bin/` altındaki python betikleriyle beraber çalışır.
+
+* `lib/german_parser.rb`: Python `pattern.de` kütüphanesi için Ruby köprüsü,
+`bin/pattern-tagger.py` betiği ile çalışır.
+
+* `lib/tasks/cts.rake`: Konsoldan hızlıca halledemediğim görece büyük çaplı
+bütün işler buradadır. Epey temizlik gerekiyor.
+
+* `config/initializers/stddev.rb`: Mini mini yardımcı işlevler, `concordance`,
+`frequency` vs.
+
+* `app/grids`: Burada cümle eşlendirme için basit bir ağ arayüzüne başladım
+ancak bitmedi.
+
+* `app/{models,controllers,views}`: Model, controller vs. standart Rails çatısı.
+
+Not: Gemfile dosyasında kullanılmayan ancak kurulan paketler olabilir. Deneme
+tahtası olmuş...
+
+## TODO: Translate to English.

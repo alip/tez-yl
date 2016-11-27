@@ -7,6 +7,735 @@ namespace :cts do
     'db:seed'
   ]
 
+  desc 'New speak mark'
+  task :mark_newspeak => :environment do
+    sent = BookWord.includes(:book_sentence).joins(:book_sentence).where(:book_sentences => {:language => 'english', :author => 'George Orwell'}).where('new_speak = 1 OR new_abbreviation = 1 OR new_naming = 1').to_a.flatten.uniq(&:book_sentence_id).map(&:book_sentence)
+    ids  = Set.new
+    sent.each_with_index do |s,i|
+      trans = %i[akgoren uster walter].map{|who| s.target_sentences.by(who)}.flatten.uniq(&:id).reject{|x| ids.include?(x.id)}
+      swords = s.book_words.map(&:id)
+      words  = trans.map(&:book_words).flatten.map(&:id)
+      ops = ''
+      trans.each do |ts|
+        ids << ts.id
+        puts "> #{ts.translator}\t#{ts.book_words.map{|x| "#{words.index(x.id)}:#{%i[new_speak new_abbreviation new_naming].select{|t| x.send(:"#{t}?")}.join(',')}:#{x.raw_content}"}.join(' ')}\n"
+
+        if s.book_words.map(&:clean_content).map(&:downcase).any?{|w| w.start_with?('telescreen')}
+          case ts.translator
+          when 'Nuran Akgören'
+            tele = ts.book_words.find{|x| x.content.downcase == 'tele'}
+            ekran = ts.book_words.find{|x| x.content.downcase.start_with?('ekran')}
+            if tele && ekran && tele.location < ekran.location
+              ops += " #{words.index(tele.id)}:#{s.book_words.map(&:clean_content).map(&:downcase).index{|w| w.start_with?('telescreen')}}"
+              ops += " #{words.index(ekran.id)}:#{s.book_words.map(&:clean_content).map(&:downcase).index{|w| w.start_with?('telescreen')}}"
+            end
+          when 'Celâl Üster'
+            teleekran = ts.book_words.find{|x| x.content.downcase =~ /tele.?ekran/i}
+            if teleekran
+              ops += " #{words.index(teleekran.id)}:#{s.book_words.map(&:clean_content).map(&:downcase).index{|w| w.start_with?('telescreen')}}"
+            end
+          when 'Michael Walter'
+            teleekran = ts.book_words.find{|x| x.content.downcase == 'televisor'}
+            if teleekran
+              ops += " #{words.index(teleekran.id)}:#{s.book_words.map(&:clean_content).map(&:downcase).index{|w| w.start_with?('telescreen')}}"
+            end
+          end
+        end
+      end
+      $stderr.puts "--- #{s.id}:Orwell\t#{s.book_words.select{|x| x.new_speak? || x.new_abbreviation? || x.new_naming?}.map{|x| "#{swords.index(x.id)}:#{x.raw_content}:#{%i[new_speak new_abbreviation new_naming].select{|t| x.send(:"#{t}?")}.join(',')}"}.join(' ')}"
+
+      if s.book_words.select{|x| (x.new_speak? || x.new_abbreviation? || x.new_naming?) && x.content == 'telescreen'}.length == 1
+        ops = ops.strip.split(' ')
+        $stderr.puts "tele ekran, yapıştır"
+      else
+        $stderr.puts "\t#{i+1}/#{sent.count}: Söyle ne yapalım? #{ops.inspect}"
+        oops = false
+        ops += ' ' + STDIN.gets.chomp
+        ops = ops.gsub('  ', ' ').strip.split(' ')
+        next if ops.blank?
+      end
+
+      ops.each do |op|
+        if op =~ /(\d+):(\d+)/
+          word = words[Regexp.last_match[1].to_i]
+          sword = swords[Regexp.last_match[2].to_i]
+          if word.nil?
+            oops = true
+            $stderr.puts "HATALI EREK INDEX: #{op}"
+          elsif sword.nil?
+            oops = true
+            $stderr.puts "HATALI KAYNAK INDEX: #{op}"
+          else
+            BookWordTranslation.find_or_create_by(:source_id => sword, :target_id => word)
+            sw = BookWord.find(sword)
+            types = %i[new_speak new_abbreviation new_naming].select{|k| sw.send(:"#{k}?")}.each do |type|
+              $stderr.puts "#{words.index(word)}:#{word} -> #{sword} & #{type}"
+              BookWord.where(:id => word).update_all(type => true)
+            end
+          end
+        else
+          oops = true
+          $stderr.puts "HATALI KOMUT: #{op}"
+        end
+      end
+    end
+=begin
+    prefix_suffixes = ['un%',
+             'ante%',
+             'plus%',
+             'doubleplus%',
+             '%wise',
+    '%ed', '%ful', 'sub%']
+    # Sub-Bursar -> X sub-basement X untruth (sözlükte var)
+    #
+    # "*goodwise", 1], ["*-wise", 1]
+    # ["antegetting", 1]
+    # ["constructionwise", 1]
+    # ["doubleplus", 1] unproceed
+    new_concepts = ['newspeak',
+             'duckspeak',
+             'facecrime',
+             'ownlife',
+             'artsem',
+             'crimethink',
+             'crimestop',
+             'goodthink',
+             'goodthinker',
+             'thoughtcrime',
+             'dayorder',
+             'doubleplusungood',
+             'unperson',
+             'upsub',
+             'antefiling',
+             'prolefeed',
+             'pornosec',
+             'speakwrite',
+             'unperson',
+             'bellyfeel',
+             'blackwhite',
+             'goodsex',
+             'sexcrime',
+             'fullwise',
+             'joycamp',
+             'malreport',
+             'malquote',
+             'misprint',
+             'oldspeak',
+             'oldthink',
+             'telescreen',
+             'thinkpol',
+             'doublethink',
+             'chocorat',
+             'crimethinker',
+             'speedwise',
+             'versificator',
+      ]
+    naming = [
+           'airstrip one',
+           'atomic war',
+           'brotherhood',
+           'big brother',
+           'hate week',
+           'inner party',
+           'outer party',
+           'memory hole',
+           'disputed territor',
+           'eastasia',
+           'eurasia',
+           'ffcc',
+           'floating fortress',
+           'golden country',
+           'junior anti-sex league',
+           'physical jerk',
+           'reclamation centre',
+           'room 101',
+           'steamer',
+           'two minute hate',
+           'youth league',
+           'malabar front',
+           'chestnut tree',
+           'chestnut-tree'
+    ]
+    abbr = {'prole' => ['proletari'],
+            'ficdep' => ['fiction department', 'department of fiction'],
+            'recdep' => ['record department', 'department of record'],
+            'teledep' => ['teleprogram department', 'department of teleprogram'],
+            'bb' => ['big brother'],
+            'yp' => ['year plan'],
+            'Ingsoc' => ['english socialism'],
+            'minitrue' => ['ministry of truth'],
+            'minipax' => ['ministry of peace'],
+            'miniluv' => ['ministry of love'],
+            'miniplenty' => ['ministry of plenty'],
+    }
+=end
+  end
+
+  desc 'Collocation preparation'
+  task :prep_ngrams => :environment do
+    %i[orwell akgoren uster walter].each do |who|
+      File.open("#{who}-ngram.txt", "w") do |fc|
+      File.open("#{who}-ngram-root.txt", "w") do |fr|
+        BookSentence.includes(:book_words).by(who).where('ttr_section IS NOT NULL').order(:id).each do |sentence|
+          fc.puts sentence.tokens.reject(&:stop_word?).map{|word| word.clean_content }.join(' ')
+          fr.puts sentence.tokens.reject(&:stop_word?).map{|word|
+            if word.verb?
+              (word.lemma || word.stem || word.clean_content)
+            else
+              (word.stem || word.clean_content)
+            end
+          }.join(' ')
+        end
+      end
+      end
+    end
+  end
+
+  desc 'Walter analyze'
+  task :analyze_walter => :environment do
+    s = BookSentence.where(:id => [18211, 18212, 18213, 18214, 18215])
+    s.each do |sent|
+      wsent = sent.target_sentences.by(:walter).uniq(&:id)
+      wttr  = wsent.map(&:types).flatten.count.fdiv(wsent.map(&:tokens).flatten.count)
+      puts "#{sent.type_token_ratio}: #{sent.book_words.map{|x| [x.raw_content, x.pos, x.type?]}}\n#{wttr}: #{wsent.map{|s| s.book_words.map{|x| [x.raw_content, x.pos, x.type?]}}}"
+    end
+  end
+
+  desc 'Calculate types for source sentences and target sentences'
+  task :find_type => :environment do
+    mapping = File.readlines('c-new.log').map{|line|
+      _, section_idx, sentence_ids = line.split(/(\d+:\d+):/)
+      [section_idx, sentence_ids.strip.split(', ').map(&:to_i)]
+    }
+
+    %i[akgoren uster walter].each do |who|
+      headers = %i[section_id ttr token type non_type noun adverb adjective verb]
+      #headers.concat(ActiveRecord::Base.connection.execute("select distinct pos from book_words bws join book_sentences bs on bws.book_sentence_id = bs.id where bs.language = 'English' and bs.author = 'George Orwell' order by pos;").to_a.flatten.map(&:to_sym))
+      headers.concat(ActiveRecord::Base.connection.execute("select distinct pos from book_words bws join book_sentences bs on bws.book_sentence_id = bs.id where bs.author = 'George Orwell' and bs.translator = '#{Book::TRANSLATORS[who]}' order by pos;").to_a.flatten.map(&:to_sym))
+      $stderr.puts who
+      File.open("#{who}-type-tokens-new.csv", 'w') do |io|
+        csv = CSV.new(io, :col_sep => "\t", :row_sep => "\n", :write_headers => true, :headers => headers)
+
+        mapping.each do |section_idx, sentence_ids|
+          #sentences = BookSentence.includes(:target_sentences).where(:id => sentence_ids).to_a
+          sentences = BookSentence.by(who).includes(:book_words).joins(:sources).where(:book_translations => {:source_id => sentence_ids}).to_a.uniq(&:id)
+          $stderr.puts "#{who}: #{section_idx}: #{sentences.count}"
+          countz = sentences.each_with_object(Hash.new(0)) do |sentence, counts|
+            sentence.tokens.each do |token|
+              counts[:token] += 1
+              if token.type?
+                counts[:type] += 1
+              else
+                counts[:non_type] += 1
+              end
+              counts[token.pos.to_sym] += 1
+              [:noun, :adverb, :adjective, :verb].each do |p|
+                if token.send(:"#{p}?")
+                  counts[p] += 1
+                  break
+                end
+              end
+            end
+          end
+          countz[:section_id] = section_idx
+          countz[:ttr] = countz[:type].fdiv(countz[:token]).send(:*, 100).round(2)
+          csv << countz.sort_by{|k,v| headers.index(k)}.map(&:last)
+        end
+      end
+    end
+  end
+
+  desc 'Calculate TTR mapping for source sections on target sentences'
+  task :find_ttr => :environment do
+    mapping = {:orwell => [], :akgoren => [], :uster => [], :walter => []}
+    transmp = Book::TRANSLATORS.invert
+    i = 0
+    limit = 1000
+    BookPart.by(:orwell).where('book_parts.location IN (1,2,3,4)').each_with_index do |part, part_idx|
+      part.book_sections.includes(:book_paragraphs => {:book_sentences => :book_words}).order(:id).each_with_index do |section, section_idx|
+        sentences = section.book_paragraphs.map(&:book_sentences).flatten
+        chunks = Hash.new.tap do |chunk_map|
+          mapping.keys.each do |who|
+            chunk_map[who] = []
+          end
+
+          chunk = {:orwell => [], :akgoren => [], :uster => [], :walter => []}
+          sentences.each do |sentence|
+            tokens = sentence.tokens
+            if chunk[:orwell].size + tokens.size > limit
+              chunk_map[:orwell] << chunk[:orwell]
+              chunk[:orwell] = []
+            end
+            chunk[:orwell] += tokens
+          end
+          unless chunk[:orwell].empty?
+            chunk_map[:orwell] << chunk[:orwell]
+            chunk[:orwell] = []
+          end
+=begin
+          File.open('cw.log', 'a') do |f|
+            chunk_map[:orwell].each_with_index do |chunk, idx|
+              f.puts "#{i}:#{idx}: #{chunk.map(&:book_sentence_id).flatten.uniq.join(', ')}"
+            end
+          end
+=end
+
+          sentence_ids = sentences.map(&:id).uniq
+
+          #File.open('s.log', 'a') do |f|
+            #f.puts("orwell:#{i+1}: #{sentence_ids.join(',')}")
+
+            #%i(akgoren uster walter).each do |who|
+            %i(walter).each do |who|
+              target_sentences = BookSentence.includes(:book_words).joins(:sources).by(who).where(:book_translations => {:source_id => sentence_ids}).uniq
+              target_sentences.each do |sentence|
+                tokens = sentence.tokens
+                if chunk[who].size + tokens.size > limit
+                  chunk_map[who] << chunk[who]
+                  chunk[who] = []
+                end
+                chunk[who] += tokens
+              end
+              unless chunk[who].empty?
+                chunk_map[who] << chunk[who]
+                chunk[who] = []
+              end
+              #f.puts("#{who}:#{i+1}: #{target_sentences.map(&:id).join(',')}")
+            end
+   #       end
+        end
+
+        #File.open('c.log', 'a') do |f|
+          chunks.each do |who, chunk_list|
+            #f.puts "#{who}:#{i}: #{chunk_list.flatten.map(&:book_sentence_id).flatten.uniq.join(', ')}"
+            tokens = chunk_list.map(&:count)
+            types  = chunk_list.map{|x| x.select(&:type?)}.map(&:count)
+            ttrs   = types.each_with_index.map{|type_count, idx| type_count.fdiv(tokens[idx])}
+            #ttr    = ttrs.inject(:+).fdiv(ttrs.size)
+            mapping[who][i] = ttrs
+          end
+        #end
+        i += 1
+      end
+    end
+=begin
+        tokens    = sentences.map(&:tokens).flatten.sort
+        offset    = (tokens.count - limit) / 2
+        ltokens   = tokens[offset...(offset+limit)]
+        ltokens   += ltokens.first.book_sentence.tokens
+        ltokens   += ltokens.last.book_sentence.tokens
+        ltokens.uniq!
+        toksent   = BookSentence.includes(:book_words).includes(:target_sentences).where(:id => ltokens.map(&:book_sentence_id).uniq).to_a
+        ltypes    = ltokens.select(&:type?)
+        mapping[:orwell][i] = ltypes.count.fdiv(ltokens.count)
+
+        toksent.map(&:target_sentences).flatten.each do |target_sentence|
+          t = transmp[target_sentence.translator]
+          next if t.nil?
+          next unless mapping.key?(t)
+          mapping[t][i] ||= Array.new
+          mapping[t][i] << target_sentence
+        end
+
+        $stderr.puts "This is part #{i+1}"
+        File.open('s.log', 'a') do |f|
+          f.puts("#{i+1}: #{toksent.map(&:id).join(',')}")
+        end
+
+        %i[akgoren uster].each do |t|
+          ltokens = mapping[t][i].uniq(&:id).map(&:tokens).flatten
+          ltypes  = ltokens.select(&:type?)
+          mapping[t][i] = ltypes.count.fdiv(ltokens.count)
+          $stderr.puts "#{t}: #{i} #{mapping[t][i]} TYPE/TOKEN=#{ltypes.count}/#{ltokens.count}"
+        end
+=end
+
+    mapping.each do |who, sections|
+      next unless who == :walter
+      File.open("#{who}-ttr.last", 'w') do |f|
+        sections.each_with_index do |ttr_chunks, section_idx|
+          ttr_chunks.each_with_index do |ttr, ttr_idx|
+            f.puts("#{section_idx+1}.#{ttr_idx}\t#{ttr*100}")
+          end
+        end
+      end
+    end
+  end
+
+  desc 'Tag German'
+  task :tag_german => :environment do
+=begin
+    tagger = StanfordGerman::Tagger.new
+
+    BookSentence.where('book_sentences.id > 41139').includes(:book_words).by(:walter).each_slice(25) do |sentences|
+      $stderr.puts "#{sentences.map(&:id)}: #{sentences.map(&:raw_content).join(' ')}"
+      words = sentences.map(&:book_words).flatten
+      tokens = words.map(&:content)
+      tagged = tagger.tag(tokens.join(' '))
+
+      tagged.split('|').each_with_index do |tag, idx|
+        pos  = tag.split('/')[1]
+        word = words[idx]
+        wpos = words[idx].pos_v
+        word.pos_v = word.blank? ? pos : "#{wpos}|#{pos}"
+        word.save!
+        puts "#{word.id}: #{word.content} -> #{word.pos_v}"
+      end
+    end
+=end
+
+    t = `cat walter.tags`
+    tags = t.split(' ').map{|x| x.split('_')}
+    words = BookSentence.where('book_sentences.id > 41139').includes(:book_words).by(:walter).map(&:book_words).flatten
+
+    w_off = 0
+    oops  = 0
+    i = 0
+    while i < tags.count
+      wi = i + w_off
+      tag = tags[i]
+      if words[wi].content.gsub(/[^[:alnum:]]/, '') == tag[0].gsub(/[^[:alnum:]]/, '')
+         oops = 0
+         npos = tag[1]
+         word = words[wi]
+         posv = word.pos_v.andand.split('|') || Array.new
+         posv.insert(0, word.pos)
+         posv = posv.uniq.join('|')
+         puts "Etiketlert! #{word.id}\t#{word.content} <-> #{tag[0]}\t#{npos}/#{posv}"
+         unless word.id < 582174
+           word.pos = npos
+           word.pos_v = posv
+           word.save!
+         end
+      else
+        puts "Sorun çıktı"
+        puts "Kelime: #{words[wi].id}\t#{words[wi].content}"
+        puts "Etiket: #{i}\t#{tag[0]}\t#{tag[1]}"
+        puts "Ne yapayım? y -> etiketle, n -> etiketlemeden geç"
+        #cmd = STDIN.gets.chomp
+        cmd = 'n'
+        if cmd == 'n'
+          puts "Kelimeyi atlıyorum"
+          oops  += 1
+          if oops > 5
+            puts "Atlayamadım arkadaşım nedir bu?"
+            exit 1
+          end
+          w_off += 1
+          next
+        else
+          puts "Ne dedin anlamadım?"
+          next
+        end
+      end
+      i += 1
+    end
+  end
+
+#  desc 'Calculate STTR'
+#  task :find_sttr => :environment do
+#    File.open("orwell-sttr.dat", 'w') do |f|
+#      BookPart.by(:orwell).includes(:book_sections => :book_paragraphs).where('book_parts.location IN (1,2,3,4)').each_with_index do |part, part_idx|
+#        part.book_sections.order(:location).each_with_index do |section, section_idx|
+#        end
+#    end
+#  end
+
+=begin
+  desc 'Calculate TTR'
+  task :find_ttr => :environment do
+    File.open("akgoren-ttr.dat", "w") do |f1|
+    File.open("uster-ttr.dat", "w") do |f2|
+      {:akgoren => f1, :uster => f2}.each do |who, ft|
+        BookPart.by(who).where('book_parts.location IN (1,2,3,4)').each_with_index do |part, part_idx|
+        part.book_sections.includes(:book_paragraphs => {:book_sentences => :book_words}).order(:location).each_with_index do |section, section_idx|
+          sentences = section.book_paragraphs.map(&:book_sentences).flatten.reject{|x| x.tokens.count == 0 || x.types.count == 0}
+          f.puts "#{part.location}.#{section.location}\t#{section.type_token_ratio(:limit => 970) * 100}\t#{section.type_token_ratio(:unique => true, :limit => 970) * 100}"
+#          translation_map = BookTranslation.where(:source_id => sentences.map(&:id)).select(:target_id).distinct
+#          {:akgoren => f1, :uster => f2, :walter => f3}.each do |who, ft|
+#            translations = BookSentence.by(who).includes(:book_words).where(:id => translation_map)
+#            tokens = translations.map(&:tokens).flatten
+#            types  = tokens.select(&:type?)
+#            if types.blank?
+#              uttr = 0
+#              sttr = 0
+#            else
+#              type_count = types.count
+#              unique_type_count = BookWord.uniq(types, :stem => true).count
+#              uttr = type_count.fdiv(tokens.count) * 100
+#              sttr = unique_type_count.fdiv(tokens.count) * 100
+#            end
+#            ft.puts "#{part.location}.#{section.location}\t#{uttr}\t#{sttr}"
+#          end
+        end
+      end
+#    end
+#    end
+#    end
+    end
+=end
+
+
+
+  desc 'Calculate TTR'
+  task :find_orwell_ttr => :environment do
+    File.open("orwell-ttr-new.dat", 'w') do |f|
+#    File.open("akgoren-ttr.dat", "w") do |f1|
+#    File.open("uster-ttr.dat", "w") do |f2|
+#    File.open("walter-ttr.dat", "w") do |f3|
+      BookPart.by(:orwell).where('book_parts.location IN (1,2,3,4)').each_with_index do |part, part_idx|
+        part.book_sections.includes(:book_paragraphs => {:book_sentences => :book_words}).order(:location).each_with_index do |section, section_idx|
+          sentences = section.book_paragraphs.map(&:book_sentences).flatten.reject{|x| x.tokens.count == 0 || x.types.count == 0}
+          f.puts "#{part.location}.#{section.location}\t#{section.type_token_ratio(:limit => 970) * 100}\t#{section.type_token_ratio(:unique => true, :limit => 970) * 100}"
+#          translation_map = BookTranslation.where(:source_id => sentences.map(&:id)).select(:target_id).distinct
+#          {:akgoren => f1, :uster => f2, :walter => f3}.each do |who, ft|
+#            translations = BookSentence.by(who).includes(:book_words).where(:id => translation_map)
+#            tokens = translations.map(&:tokens).flatten
+#            types  = tokens.select(&:type?)
+#            if types.blank?
+#              uttr = 0
+#              sttr = 0
+#            else
+#              type_count = types.count
+#              unique_type_count = BookWord.uniq(types, :stem => true).count
+#              uttr = type_count.fdiv(tokens.count) * 100
+#              sttr = unique_type_count.fdiv(tokens.count) * 100
+#            end
+#            ft.puts "#{part.location}.#{section.location}\t#{uttr}\t#{sttr}"
+#          end
+        end
+      end
+#    end
+#    end
+#    end
+    end
+
+=begin
+    %i[orwell akgoren uster walter].each do |who|
+      File.open("#{who}-ttr.dat", 'w') do |f|
+        BookPart.by(who).includes(:book_sections => {:book_paragraphs => {:book_sentences => :book_words}}).where('book_parts.location IN (1,2,3,4)').each_with_index do |part, part_idx|
+          part.book_sections.each_with_index do |section, section_idx|
+            sentences = section.book_paragraphs.map(&:book_sentences).flatten.reject{|x| x.tokens.count == 0 || x.types.count == 0}
+            tokens = sentences.map{|s| s.tokens.count}.inject(:+)
+            types  = sentences.map{|s| s.types.count}.inject(:+)
+            f.puts "#{(part_idx * 100) + section_idx}\t#{types.fdiv(tokens)}"
+          end
+        end
+      end
+    end
+=end
+  end
+
+=begin
+  desc 'Find splits'
+  task :find_split => :environment do
+    translations = Hash.new
+    BookTranslation.where(:source_id => BookSentence.select(:id).by(:orwell).where('book_sentences.content RLIKE "[[:alnum:]]"')).each do |row|
+      source_id = row[:source_id]
+      target_id = row[:target_id]
+      translations[source_id] ||= Set.new
+      translations[source_id] << target_id
+    end
+
+    splits = Array.new.tap do |result|
+      translations.each do |source_id,target_ids|
+        scope = BookSentence.where(:id => target_ids.to_a).group(:translator).having('count(id) > 1')
+        next unless scope.exists?
+        sentences = scope.order(:location).to_a
+        result << [source_id, sentences.first.book_part.location, sentences.map(&:id).join('|'), sentences.map(&:raw_content).join(" ")]
+      end
+    end.sort
+
+    CSV.open('splits.csv', 'wb') do |csv|
+      splits.each do |item|
+        csv << item
+      end
+    end
+  end
+
+  desc 'Find additions'
+  task :find_add => :environment do
+    require 'csv'
+
+    translations = Hash.new
+    BookTranslation.where(:source_id => BookSentence.select(:id).by(:orwell).where('book_sentences.content RLIKE "[[:alnum:]]"')).each do |row|
+      source_id = row[:source_id]
+      target_id = row[:target_id]
+      translations[source_id] ||= Set.new
+      translations[source_id] << target_id
+    end
+
+    subtractions = Array.new.tap do |result|
+      translations.select{|source_id,target_ids| target_ids.count < Book::TRANSLATORS.count}.each do |source_id, target_ids|
+        translators  = BookSentence.where(:id => target_ids.to_a).pluck(:translator)
+        missing_translators = Book::TRANSLATORS.reject{|translator_id, translator_name| translators.include?(translator_name)}
+
+        missing_translators.each do |translator_id, translator_name|
+          sentence = BookSentence.includes(:book_paragraph => {:book_section => :book_part}).find(source_id)
+          #paragraph = sentence.book_paragraph.book_sentences.to_a.map(&:target_sentences).map(&:to_a).flatten.select{|ts| ts.translator == translator_name}.sort_by(&:location).map(&:raw_content).join(' ')
+          result << [translator_id, sentence.book_part.location, source_id, sentence.raw_content] #paragraph]
+        end
+      end
+    end.sort
+
+    CSV.open('subtractions.csv', 'wb') do |csv|
+      subtractions.each do |item|
+        csv << item
+      end
+    end
+  end
+=end
+
+  desc 'Find subtractions'
+  task :find_sub => :environment do
+    require 'csv'
+
+    translations = Hash.new
+    BookTranslation.where(:source_id => BookSentence.select(:id).by(:orwell).where('book_sentences.content RLIKE "[[:alnum:]]"')).each do |row|
+      source_id = row[:source_id]
+      target_id = row[:target_id]
+      translations[source_id] ||= Set.new
+      translations[source_id] << target_id
+    end
+
+    subtractions = Array.new.tap do |result|
+      translations.select{|source_id,target_ids| target_ids.count < Book::TRANSLATORS.count}.each do |source_id, target_ids|
+        translators  = BookSentence.where(:id => target_ids.to_a).pluck(:translator)
+        missing_translators = Book::TRANSLATORS.reject{|translator_id, translator_name| translators.include?(translator_name)}
+
+        missing_translators.each do |translator_id, translator_name|
+          sentence = BookSentence.includes(:book_paragraph => {:book_section => :book_part}).find(source_id)
+          #paragraph = sentence.book_paragraph.book_sentences.to_a.map(&:target_sentences).map(&:to_a).flatten.select{|ts| ts.translator == translator_name}.sort_by(&:location).map(&:raw_content).join(' ')
+          result << [translator_id, sentence.book_part.location, source_id, sentence.raw_content] #paragraph]
+        end
+      end
+    end.sort
+
+    CSV.open('subtractions.csv', 'wb') do |csv|
+      subtractions.each do |item|
+        csv << item
+      end
+    end
+  end
+
+  desc 'Parse German'
+  task :parse_german => :environment do
+    File.open('mismatch.log', 'w') do |f|
+      bs = BookSentence.by(:walter).order('book_sentences.id ASC').where('book_sentences.id > 41610').select(:id)
+      bs.each_with_index do |tid, idx|
+        ts = BookSentence.includes(:book_words).find(tid)
+        wd = ts.book_words.order(:location)
+        ct = wd.map(&:content).join(' ')
+        gs = GermanParser::Parser.new
+        p  = gs.parse(ct)
+        gs.close
+        if p.count != wd.count
+          f.puts("#{ts.id}: #{wd.count} #{p.count}")
+          next
+        end
+        p.each_with_index do |info, idx|
+          word = wd[idx]
+          word.pos = info[:pos]
+          word.pos_v = info[:pos_v]
+          word.lemma = info[:lemma] if word.pos.start_with?('V')
+          word.stem  = info[:lemma]
+          if info[:lemma] == 'zimmer' && word.content == 'gesprochen'
+            byebug
+          end
+          word.save!
+        end
+        $stderr.puts("#{idx}: #{ts.id}: #{ct}")
+      end
+    end
+  end
+
+  desc 'Mark shifts'
+  task :mark_shifts => :environment do
+    c = 0
+    t = BookSentence.by(:uster).count
+    t += BookSentence.by(:akgoren).count
+    %i[uster akgoren].each do |tx|
+      BookSentence.by(tx).includes(:source_sentences).each do |ts|
+        c += 1
+        puts ">>> #{c}/#{t} (#{t - c} left)"
+        if ts.flag_set?(:passive) && !ts.source_sentences.any?{|s| s.flag_set?(:passive)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:passivisation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:passivisation))
+        end
+        if ts.flag_set?(:passive) && !ts.source_sentences.any?{|s| s.flag_set?(:passive)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:depassivisation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:depassivisation))
+        end
+        if ts.flag_set?(:personal_pronoun) && !ts.source_sentences.any?{|s| s.flag_set?(:personal_pronoun)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:pronominalisation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:pronominalisation))
+        end
+        if !ts.flag_set?(:personal_pronoun) && ts.source_sentences.any?{|s| s.flag_set?(:personal_pronoun)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:depronominalisation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:depronominalisation))
+        end
+        if ts.flag_set?(:exclamation) && !ts.source_sentences.any?{|s| s.flag_set?(:exclamation)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:exclamation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:exclamation))
+        end
+        if !ts.flag_set?(:exclamation) && ts.source_sentences.any?{|s| s.flag_set?(:exclamation)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:deexclamation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:deexclamation))
+        end
+        if ts.flag_set?(:question) && !ts.source_sentences.any?{|s| s.flag_set?(:question)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:questionation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:questionation))
+        end
+        if !ts.flag_set?(:question) && ts.source_sentences.any?{|s| s.flag_set?(:question)}
+          ts.shifts |= (1 << BookSentence::SHIFTS.index(:dequestionation))
+        else
+          ts.shifts &= ~(1 << BookSentence::SHIFTS.index(:dequestionation))
+        end
+        ts.save!
+      end
+    end
+  end
+
+  desc 'Merge incorrectly tokenized sentences'
+  task :merge_sentences => :environment do
+    stop = %w[… . ? ! :]
+    smap = []
+    cmap = []
+    #(47400..47734).each do |sid|
+    #  s = BookSentence.find(sid) rescue nil
+      #next if s.nil?
+    BookSentence.by(:walter).order(:id => :asc).each do |s|
+      next if cmap.blank? && stop.any?{|x| s.raw_content.end_with?(x)}
+      break if s.id >= 47400
+      next unless s.id > 41005
+
+      cmap << s
+      if stop.any?{|x| s.raw_content.end_with?(x)}
+        smap << cmap
+        cmap = []
+      end
+    end
+
+    smap.each do |cmap|
+      next unless cmap.map(&:source_sentences).flatten.map(&:id).uniq.length == 1
+      cmap.each do |sent|
+        puts "\t#{sent.id} #{sent.raw_content}"
+      end
+      print ">>> Merge #{cmap.count} sentences? (y/n) "
+      next unless true # STDIN.gets.chomp =~ /y/i
+
+      BookSentence.merge!(*cmap.map(&:id))
+      puts ">>> Merged #{cmap.count} sentences"
+    end
+  end
+
   desc 'Apply heuristic align'
   task :apply_heuristic => :environment do
     mx = BookSentence.by(:akgoren).joins(:sources).select(:id).to_a.map(&:id)
@@ -39,31 +768,32 @@ namespace :cts do
 
   desc 'Check and apply bleualign generated alignments'
   task :apply_bleualign => :environment do
-    src = Rails.root.join('bleu/1984-align-s').to_s
-    dst = Rails.root.join('bleu/1984-align-t').to_s
+    src = Rails.root.join('bleu/orwell-de-appendix-align-s').to_s
+    dst = Rails.root.join('bleu/orwell-de-appendix-align-t').to_s
 
-  tsd = Hash.new.tap do |h|
-    ss = File.readlines(src).map(&:strip)
-    ts = File.readlines(dst).map(&:strip)
+    Hash.new.tap do |h|
+      ss = File.readlines(src).map(&:strip)
+      ts = File.readlines(dst).map(&:strip)
 
-    ss.each_with_index do |rs, idx|
-      sid = rs.split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
-      tid = ts[idx].split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
+      ss.each_with_index do |rs, idx|
+        sid = rs.split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
+        tid = ts[idx].split(/(?<!\d)\. /).map{|rt| rt = rt.truncate(30).gsub('\\', '_').sub(/\.\.\.\Z/,'') + '%'; BookSentence.where(['raw_content LIKE ?', rt]).select(:id).first.id rescue nil}
 
-      sid.compact.each do |ssid|
-        h[ssid] ||= Array.new
-        h[ssid] |= tid.compact
+        sid.compact.each do |ssid|
+          h[ssid] ||= Array.new
+          h[ssid] |= tid.compact
+        end
       end
-    end
-  end.each do |k,v|
-      next unless k >= 18708
-      next unless v.sort.reverse.first >= 3791
+    end.each do |k,v|
+      #next unless k >= 18708
+      #next unless v.sort.reverse.first >= 3791
       s = BookSentence.find(k)
       t = v.map{|tid| BookSentence.find(tid)}
       #next unless s.targets.blank?
       #next unless s.sources.blank?
 
       t.each do |tt|
+        next unless tt.book_paragraph.book_section_id == 180
         puts "\e[01;32m#{s.id}: #{s.content}\e[00m\e[01;33m\n#{tt.id}: #{tt.raw_content}\e[00m"
         cmd = 'e'
         if cmd =~ /h/i
@@ -76,20 +806,54 @@ namespace :cts do
     end
   end
 
-  desc 'Prepare bleualign inputs'
-  task :prepare_bleualign => :environment do
-    %i[orwell akgoren].each do |author|
-      text = Rails.root.join("bleu/1984-#{author}.#{author == :orwell ? 'en' : 'tr'}").to_s
+  desc 'Prepare bleualign inputs for walter appendix'
+  task :prepare_bleualign_walter => :environment do
+    %i[orwell walter].each do |author|
+      text = Rails.root.join("bleu/1984-appendix-window3-#{author}.#{author == :orwell ? 'en' : 'de'}").to_s
       auto = "#{text}.auto"
+      imap = "#{text}.map"
 
       ftext = File.open(text, 'w')
       fauto = File.open(auto, 'w')
+      fimap = File.open(imap, 'w')
       begin
         BookSection.by(author).order(:id => :asc).includes(:book_paragraphs => :book_sentences).each do |book_section|
+          case author
+          when :orwell
+            next unless book_section.id == 72
+          when :walter
+            next unless book_section.id == 180
+          end
           book_section.book_paragraphs.order(:id => :asc).each do |book_paragraph|
-            book_paragraph.book_sentences.order(:id => :asc).select([:raw_content, :auto_content]).each do |book_sentence|
-              ftext.puts book_sentence.raw_content
-              fauto.puts book_sentence.auto_content
+            #case author
+            #when :orwell
+              #next unless book_paragraph.id >= 5657 # 5608 # 5591 # 5516
+              #next unless book_paragraph.book_sentences.includes(:target_sentences).any?{|s| s.target_sentences.by(:akgoren).empty?}
+            #when :akgoren
+              #next unless book_paragraph.id >= 1017 # 967 # 950 # 874
+              #next unless book_paragraph.book_sentences.any?{|s| s.source_sentences.empty?}
+            #end
+            book_paragraph.book_sentences.order(:id => :asc).select([:id, :raw_content, :auto_content]).each do |book_sentence|
+              clean_content = book_sentence.raw_content.gsub(/[^[:alpha:] ]/, '').gsub(/\s+/, ' ').sub(/^ /, '').sub(/\s$/, '').downcase
+              ftext.puts clean_content
+              fimap.puts "#{book_sentence.id.to_s}|#{clean_content}"
+
+              auto_content = nil
+              case author
+              when :orwell
+                unless book_sentence.target_sentences.empty?
+                  auto_content = book_sentence.target_sentences.map(&:raw_content).join(' ')
+                end
+              when :walter
+                unless book_sentence.source_sentences.empty?
+                  auto_content = book_sentence.source_sentences.map(&:raw_content).join(' ')
+                end
+              end
+              if auto_content.nil?
+                auto_content = book_sentence.auto_content
+              end
+
+              fauto.puts auto_content.gsub(/[^[:alpha:] ]/, '').gsub(/\s+/, ' ').sub(/^ /, '').sub(/\s$/, '').downcase
               $stderr.print '.'
             end
           end
@@ -97,6 +861,63 @@ namespace :cts do
           fauto.puts '.EOA'
         end
       ensure
+        fimap.close
+        ftext.close
+        fauto.close
+      end
+    end
+  end
+
+  desc 'Prepare bleualign inputs'
+  task :prepare_bleualign => :environment do
+    %i[orwell akgoren].each do |author|
+      text = Rails.root.join("bleu/1984-window3-#{author}.#{author == :orwell ? 'en' : 'tr'}").to_s
+      auto = "#{text}.auto"
+      imap = "#{text}.map"
+
+      ftext = File.open(text, 'w')
+      fauto = File.open(auto, 'w')
+      fimap = File.open(imap, 'w')
+      begin
+        BookSection.by(author).order(:id => :asc).includes(:book_paragraphs => :book_sentences).each do |book_section|
+          book_section.book_paragraphs.order(:id => :asc).each do |book_paragraph|
+            case author
+            when :orwell
+              next unless book_paragraph.id >= 5657 # 5608 # 5591 # 5516
+              #next unless book_paragraph.book_sentences.includes(:target_sentences).any?{|s| s.target_sentences.by(:akgoren).empty?}
+            when :akgoren
+              next unless book_paragraph.id >= 1017 # 967 # 950 # 874
+              #next unless book_paragraph.book_sentences.any?{|s| s.source_sentences.empty?}
+            end
+            book_paragraph.book_sentences.order(:id => :asc).select([:id, :raw_content, :auto_content]).each do |book_sentence|
+              clean_content = book_sentence.raw_content.gsub(/[^[:alpha:] ]/, '').gsub(/\s+/, ' ').sub(/^ /, '').sub(/\s$/, '').downcase
+              ftext.puts clean_content
+              fimap.puts "#{book_sentence.id.to_s}|#{clean_content}"
+
+              auto_content = nil
+              case author
+              when :orwell
+                unless book_sentence.target_sentences.empty?
+                  auto_content = book_sentence.target_sentences.map(&:raw_content).join(' ')
+                end
+              when :akgoren
+                unless book_sentence.source_sentences.empty?
+                  auto_content = book_sentence.source_sentences.map(&:raw_content).join(' ')
+                end
+              end
+              if auto_content.nil?
+                auto_content = book_sentence.auto_content
+              end
+
+              fauto.puts auto_content.gsub(/[^[:alpha:] ]/, '').gsub(/\s+/, ' ').sub(/^ /, '').sub(/\s$/, '').downcase
+              $stderr.print '.'
+            end
+          end
+          ftext.puts '.EOA'
+          fauto.puts '.EOA'
+        end
+      ensure
+        fimap.close
         ftext.close
         fauto.close
       end
@@ -410,14 +1231,21 @@ namespace :cts do
       source_p = source_paragraphs[idx + s_off]
       target_p = target_paragraphs[idx + t_off]
 
-      unless target_p.id >= 764 # 762 # 633 # 580 # 493 # 250 # 220 # 198
+      if source_p.id == 5973
+        source_idx = source_paragraphs.index{|sp| sp.id == 5948}
+        s_off = source_idx - idx
+        next
+      end
+
+      unless target_p.id >= 1306 # 764 # 762 # 633 # 580 # 493 # 250 # 220 # 198
         idx += 1
         next
       end
-      unless source_p.id >= 5366 # 5364 # 5230 # 5171 # 5080 # 4814 # 4778 # 4754
+      unless source_p.id >= 5948 # 5366 # 5364 # 5230 # 5171 # 5080 # 4814 # 4778 # 4754
         s_off += 1
         next
       end
+
       puts '--8<--'
 
       if source_p.book_sentences.count == 1 && source_p.book_sentences.first.content == '>'
@@ -626,4 +1454,3 @@ namespace :cts do
     end
   end
 end
-

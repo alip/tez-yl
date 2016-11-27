@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+translate() {
+    trans -no-ansi \
+      -show-original n \
+      -show-original-phonetics n \
+      -show-translation-phonetics n \
+      -show-original-dictionary n \
+      -show-alternatives n \
+      -show-dictionary n \
+      -show-languages n \
+      -show-prompt-message n "$1" -i /tmp/trans.txt
+}
+
+src_dst="$1"
+while read -rd$'\n' line; do
+    if [[ "$line" =~ 000 ]]; then
+        exit
+    fi
+    echo "$line" > /tmp/trans.txt
+    translate "$src_dst"
+done

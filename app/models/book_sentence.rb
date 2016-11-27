@@ -10,6 +10,13 @@
 #  updated_at        :datetime         not null
 #  raw_content       :text(65535)
 #  auto_content      :text(65535)
+#  translator        :string(255)
+#  language          :string(255)
+#  author            :string(255)
+#  shifts            :integer
+#  flags             :integer
+#  ttr_section       :integer
+#  ttr_subsection    :integer
 #
 # Indexes
 #
@@ -18,7 +25,8 @@
 
 class BookSentence < ActiveRecord::Base
   belongs_to :book_paragraph
-  has_and_belongs_to_many :book_words, :dependent => :destroy
+  has_many :book_words, :dependent => :destroy
+  #has_and_belongs_to_many :book_words, :dependent => :destroy
 
   has_many :sources, :class_name => 'BookTranslation', :foreign_key => :target_id
   has_many :targets, :class_name => 'BookTranslation', :foreign_key => :source_id
@@ -26,11 +34,147 @@ class BookSentence < ActiveRecord::Base
   has_many :target_sentences, :through => :targets
 
   scope :in, -> (language) { includes(:book_paragraph => {:book_section => {:book_part => [:book]}}).where(:books => Book.query_in(language)) }
-  scope :by, -> (author_or_translator) { joins(:book_paragraph => {:book_section => {:book_part => [:book]}}).where(:books => Book.query_by(author_or_translator)) }
+  scope :by, -> (author_or_translator) { where(**Book.query_by(author_or_translator)) }
   scope :has_words, -> (words) { joins(:book_words).where(:book_words => {:content => words}) }
   scope :has_lemmas, -> (lemmas) { joins(:book_words).where(:book_words => {:lemma => lemmas}) }
   scope :in_section, -> (section_id) { includes(:book_paragraph).where(:book_section_id => section_id) }
   scope :not_tagged, -> { joins(:book_words).where(:book_words => {:pos => nil}) }
+  scope :newspeak, -> { # FIXME: quick hack.
+    value = '(Newspeak|Minitrue|Minipax|Miniluv|Miniplenty|duckspeak|facecrime|ownlife|doublethink|artsem|crimethink|crimestop|goodthinker|thoughtcrime|dayorder|doubleplusungood|unperson|upsub|antefiling|prole|IngSoc|Anti-Sex|Junior Anti-Sex League|Pornosec)'
+    where(:language => 'english').where(['raw_content RLIKE ?', value])
+  }
+
+  FLAGS  = [:passive,
+            :personal_pronoun,
+            :exclamation,
+            :question,
+            :explanation
+  ].freeze
+
+  scope :passive, -> { where("flags = (flags | 1 << #{FLAGS.index(:passive)})") }
+  scope :active, -> { where("flags != (flags | 1 << #{FLAGS.index(:passive)})") }
+
+  SHIFTS = [:passivisation,
+            :depassivisation,
+            :pronominalisation,
+            :depronominalisation,
+            :exclamation,
+            :deexclamation,
+            :questionation,
+            :dequestionation
+  ].freeze
+
+  def self.wrap(sentences)
+    words = sentences.map do |s|
+      s.raw_content.split(' ').map do |w|
+        s.types.any? do |t|
+          l = [4, t.content.length].min
+          t.content[0..l] == w[0..l].downcase
+        end ? '\e'"mph{#{w}}" : w
+      end
+    end.flatten
+
+    i = 0
+    lines = [[]]
+    words.each do |raw_word|
+      w = raw_word.start_with?('\emph{') ? raw_word[6..-2] : raw_word
+      if lines[i].map{|word| word.start_with?('\emph{') ? word[6..-2] : word}.join(' ').length + 1 + w.length > 72
+        i += 1
+        lines[i] = []
+      end
+      lines[i] << raw_word
+    end
+    lines.map{|x| x.join(' ')}.join('\\\\ ')
+  end
+
+  def translation_split?
+    source_sentences.any?{|ss|
+      t = ss.target_sentences.includes(:sources).by(translator)
+      t.to_a.count > t.map(&:sources).flatten.count
+    }
+  end
+
+  def flag_set?(f)
+    (self.flags & (1 << FLAGS.index(f))) == 1
+  end
+
+  def passive?
+    (self.flags & (1 << FLAGS.index(:passive))) == 1
+  end
+
+  def self.merge!(*sentence_ids)
+    sentences = sentence_ids.uniq.sort.map{|sid| BookSentence.find(sid)}
+
+    dst = sentences.first
+    src = sentences[1..-1]
+    lng = dst.language
+
+    src.each do |src_sent|
+      %i[content raw_content auto_content].each do |c|
+        new_content = dst.send(c).andand.clone.to_s
+        old_content = src_sent.send(c).andand.clone.to_s
+        next if old_content.blank?
+
+        if !new_content.end_with?(' ') && !old_content.start_with?(' ')
+          new_content << ' '
+        end
+        new_content << old_content
+        dst.send(:"#{c}=", new_content)
+      end
+
+      BookWord.where(:id => src_sent.book_words.pluck(:id)).update_all(:book_sentence_id => dst.id)
+
+      unless lng == :english
+        src_sent.source_sentences.each do |source_sentence|
+          BookTranslation.find_or_create_by(:source_id => source_sentence.id,
+                                            :target_id => dst.id)
+          BookTranslation.delete_all(['source_id = ? AND target_id = ?', source_sentence.id, src_sent.id])
+        end
+      else
+        src_sent.target_sentences.each do |target_sentence|
+          BookTranslation.find_or_create_by(:target_id => target_sentence.id,
+                                            :source_id => dst.id)
+          BookTranslation.delete_all(['source_id = ? AND target_id = ?', src_sent.id, target_sentence.id])
+        end
+      end
+    end
+
+    dst.save!
+    src.each {|sent| sent.destroy! }
+
+    dst
+  end
+
+  def align_window_begin
+    BookSentence.by(self.translator).joins(:source_sentences).where(['book_sentences.id < ?', self.id]).order('source_sentences_book_sentences.id DESC').select('source_sentences_book_sentences.id').first.andand.id
+  end
+
+  def align_window_end
+    BookSentence.by(self.translator).joins(:source_sentences).where(['book_sentences.id > ?', self.id]).order('book_sentences.id,source_sentences_book_sentences.id ASC').select('source_sentences_book_sentences.id').first.andand.id
+  end
+
+  def aligned?
+    !sources.empty?
+  end
+
+  # Fix quote word in sentences like:
+  # "»bringen sie die gläser hierher, martin."
+  # where the first book word is: "»bringen"
+  def fix_quote!
+    nw = BookWord.create(:content => '»', :location => 1)
+    self.book_words.append(nw)
+    ws = book_words.order(:location)
+    ws.each_with_index do |w, idx|
+      next if w.id == nw.id
+      w.location += 1
+      if w.location == 2 and w.content.start_with?('»')
+        w.content = w.content[1..-1]
+        w.raw_content = w.raw_content[1..-1]
+        w.stem = w.stem[1..-1]
+      end
+      w.save!
+    end
+  end
 
   def translate!(translator)
     return nil unless self.auto_content.nil?
@@ -39,23 +183,42 @@ class BookSentence < ActiveRecord::Base
   end
 
   # Calculate Type/Token ratio
-  def ttr(options = {:unique => false})
-    count_arg = "distinct(book_words.#{options[:unique] ? 'content' : 'id'})"
-
-    tokens = tt[:tokens].count
-    types  = tt[:types].count(count_arg)
-
-    types.fdiv(tokens)
+  def tokens(unique: false, limit: nil)
+    r = book_words.reject{|w| w.pos == '?' || w.raw_content =~ /\A[[:^alnum:]]\Z/}
+    unless limit.to_i > r.count
+      unique ? BookWord.uniq(r, :stem => true) : r
+    else
+      # Pick from between
+      off = (r.count - limit) / 2
+      r[off...off+limit]
+    end
   end
+
+  def types(unique: false, limit: nil)
+    r = tokens(:limit => limit).select(&:type?)
+    unique ? BookWord.uniq(r, :stem => true) : r
+  end
+
+  def type_token_ratio(unique: false, limit: nil)
+    if limit.nil?
+      token_count = tokens(unique: unique).count
+      token_count == 0 ? 0 : types(:unique => unique).count.fdiv(token_count)
+    else
+      toks = tokens(unique: unique)
+      unless limit > toks.length
+        off = (toks.count - limit)
+        toks = toks[off...off+limit]
+      end
+      typs = toks.select(&:type?)
+      toks.count == 0 ? 0 : typs.count.fdiv(toks.count)
+    end
+  end
+
   def uttr; ttr(:unique => true); end
 
   def tt
     @tt ||= {:types  => book_words.where(:pos => BookWord::POS.values.flatten),
              :tokens => book_words}
-  end
-
-  def aligned?
-    !sources.empty?
   end
 
   def tagged?
@@ -66,10 +229,36 @@ class BookSentence < ActiveRecord::Base
     book_words.select{|w| w.pos.blank?}
   end
 
+  # Like tag, but includes dependency parsing too.
+  def analyze!
+    words = book_words.order(:location).select([:id, :raw_content])
+    Itu::Nlp.cts_pipeline(words.map(&:clean_content)).each_with_index do |data, idx|
+      word = words[idx]
+      word.location = idx + 1
+      word.save!
+      unless data[:dep].nil?
+        relate_idx = data[:dep][:idx]
+        related_as = BookWordDependency.dependencies[data[:dep][:as]]
+        relater_id = word.id
+        related_id = relate_idx >= 0 ? words[relate_idx].id : nil
+        BookWordDependency.find_or_create_by(:relater_id => relater_id,
+                                             :related_id => related_id,
+                                             :dependency => related_as)
+      end
+    end
+  end
+
+  def tag_me!(tagger)
+    sent = book_words.reject{|w| w.clean_content.nil?}.map(&:clean_content).join('|')
+    puts sent
+    tagged = tagger.tag(sent).split('|').map{|x| x.split('/', 1)}
+  end
+
   def tag!
     book_words.reject{|w| w.clean_content.nil?}.each_with_index do |word, idx|
       puts "#{idx}: #{word.raw_content}"
       info = tags[idx]
+      next if info.nil?
 
       word.pos    = info[:pos] unless info[:pos].blank?
       word.pos_v  = info[:pos_v].join('|') unless info[:pos_v].blank?
@@ -79,10 +268,14 @@ class BookSentence < ActiveRecord::Base
         word.stem  = info[:stem]
         word.lemma = info[:pos] == 'Verb' ? info[:stem] : nil
       end
-      word.native = info[:isturkish]
+      #word.native = info[:isturkish]
 
       word.save! if word.changed?
     end
+  end
+
+  def simple_tags
+    @simple_tags ||= Itu::Nlp.morphanalyzer(book_words.map(&:clean_content).join(' '))
   end
 
   def tags
@@ -217,11 +410,15 @@ class BookSentence < ActiveRecord::Base
     language != :english
   end
 
-  def language
-    @language ||= book.language.to_sym
+  def book_language
+    @book_language ||= book.language.to_sym
   end
 
-  def translator
+  def book_author
+    book.author
+  end
+
+  def book_translator
     book.translator
   end
 

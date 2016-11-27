@@ -25,10 +25,11 @@ table.datagrid td.location {
 }
 
 table.datagrid td.align {
-	margin: 0px;
-	padding: 0px;
+	margin: 0px !important;
+	padding: 0px !important;
 	font-size: 12px;
 	width: 16%;
+	vertical-align: top !important;
 }
 
 table.datagrid td.translator {
@@ -38,17 +39,25 @@ table.datagrid td.translator {
 	width: 6%;
 }
 
+table.datagrid .content {
+	width: 47%; /* before align width: 47%; */
+}
+
+table.datagrid .source {
+	width: 25%; /* before align width: 47%; */
+}
+
 table.datagrid td.content {
 	font-family: monospace;
 	margin: 0px !important;
 	padding: 0px !important;
-	width: 37%; /* before align width: 47%; */
+	font-size: 15px;
 	display: inline !important;
 }
 
 table.datagrid td.source {
+	font-size: 14px;
 	font-family: monospace;
 	margin: 0px !important;
 	padding: 0px !important;
-	width: 37%; /* before align width: 47%; */
 }

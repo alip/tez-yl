@@ -67,17 +67,22 @@ module Itu
         }
       ).split("\r\n").reject{|l| TAGS.any?{|t| l.include?(t)}}.map do |line|
         fields            = line.split(' ')
-        raw_content       = fields[0]
-        stem, pos, *pos_v = fields[1].split('+')
-        entity            = fields[2]
-        {:raw_content => fields[0],
-         :stem        => stem,
-         :pos         => pos,
-         :pos_v       => pos_v,
-         :entity      => entity =~ /\Ao\Z/i ? nil : entity.downcase.to_sym,
-         :isturkish   => self.isturkish(fields[0])
-        }
-      end
+        if fields.length >= 3
+          raw_content       = fields[0]
+          if fields[1].nil?
+            byebug
+          end
+          stem, pos, *pos_v = fields[1].split('+')
+          entity            = fields[2]
+          {:raw_content => fields[0],
+           :stem        => stem,
+           :pos         => pos,
+           :pos_v       => pos_v,
+           :entity      => entity =~ /\Ao\Z/i ? nil : entity.andand.downcase.andand.to_sym,
+           # :isturkish   => self.isturkish(fields[0])
+          }
+        end
+      end.compact
     end
 
     class << self
@@ -89,12 +94,35 @@ module Itu
             oh[:input]   = input.force_encoding('UTF-8')
           }
           cache = ($ITU_NLP_DIRECT || ENV.key?('ITU_NLP_DIRECT')) ? "?nocache=1" : ""
+
           t0 = Time.now
-          response = post("/SimpleApi#{cache}", :body => request_args)
+          err = nil
+
+          # Preprocessing
+          case meth
+          when :ner
+            # Skip ner altogether for now.
+            response = input.gsub("\n", "\r\n")
+          when :disambiguator
+            # Skip disambiguation for now.
+            # Poor man's disambiguation.
+            items = input.split("\n")
+            header = items.shift
+            footer = items.pop
+            response = "#{header}\n#{items.map{|x| z = x.split(' ') ; [z[0], z[1..-1].max{|x| x.length}]}.map{|x| x.join(' ')}.join("\n")}\n#{footer}"
+          else
+            begin
+              response = post("/SimpleApi#{cache}", :body => request_args)
+            rescue => e
+              err = e
+            end
+          end
+
           t1 = Time.now
           File.open(Rails.root.join('log/itu-access.log').to_s, 'a') do |f|
             f.puts "#{meth}: #{sprintf('%.04f', t1-t0)}: #{request_args.inspect}"
           end
+          raise ArgumentError, "Protocol error `#{err.to_s}' for #{meth}: #{input.inspect}" unless err.nil?
           raise ArgumentError, "Invalid input for #{meth}: #{input.inspect}" if response =~ /Invalid parameter/i
 
           case meth

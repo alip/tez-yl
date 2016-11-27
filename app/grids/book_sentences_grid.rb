@@ -2,7 +2,7 @@ class BookSentencesGrid
 
   include Datagrid
 
-  COLOURS = %w[FFFFFF FFFF99 FFFF33 FFCCFF FFCC99
+  COLOURS = %w[FFFF99 FFFF33 FFCCFF FFCC99
                FFCC33 FF99FF FF9999 FF9933 FF66FF
                CCFFCC CCFF66 CCFF00 CCCCFF CCCC99
                CCCC33 CC99FF CC9999 CC9966 99FFCC
@@ -12,141 +12,119 @@ class BookSentencesGrid
                CC00FF CC6633 FF0099 FF6666 FF9900]
 
   scope do
-    BookSentence.joins(:source_sentences => {:target_sentences => {:book_paragraph => {:book_section => {:book_part => [:book]}}}}).
-                 joins(:book_paragraph => {:book_section => {:book_part => [:book]}}).
-                 distinct
+    BookSentence.includes(:target_sentences).where(:language => 'english')#.where('book_sentences.id > 21466')
   end
 
   filter(:translator, :enum,
          :prompt => '-- Çevirmen --',
-         :select => Book::TRANSLATORS.values) do |name|
-           q = Book.query_by(Book::TRANSLATORS.detect{|k,v| name == v}.first)
-           where(:books => q, :books_book_parts => q)
-         end
+         :checkboxes => true,
+         :select => Book::TRANSLATORS.values,
+         :dummy => true)
+
   filter(:target_search, :string,
          :placeholder => 'Erek Metin',
-         :header => 'Metin Ara:') do |value|
+         :header => 'Metin Ara:') do |value, scope, grid|
             if value =~ /\A['"](.*?)['"]\Z/
               value = Regexp.last_match[1]
             elsif value !~ /%/
               value = "%#{value}%"
             end
-            where(['target_sentences_book_sentences.raw_content LIKE ?', value])
+            s = scope.joins(:target_sentences).where(["target_sentences_book_sentences.raw_content LIKE ?", value])
+            unless grid.translator.blank?
+              s = s.where(["target_sentences_book_sentences.translator IN (?)", grid.translator])
+            end
          end
   filter(:source_search, :string,
          :placeholder => 'Kaynak Metin',
          :header => 'Metin Ara:') do |value|
-           if value =~ /\A['"](.*?)['"]\Z/
+           op = 'LIKE'
+           if value == 'newspeak'
+             value = '(Newspeak|Minitrue|Minipax|Miniluv|Miniplenty|duckspeak|facecrime|ownlife|doublethink|artsem|crimethink|crimestop|goodthinker|thoughtcrime|dayorder|doubleplusungood|unperson|upsub|antefiling|prole|IngSoc|Anti-Sex|Junior Anti-Sex League|Pornosec)'
+             op    = 'RLIKE'
+           elsif value =~ /\A['"](.*?)['"]\Z/
              value = Regexp.last_match[1]
            elsif value !~ /%/
              value = "%#{value}%"
            end
-           where(['source_sentences_book_sentences.raw_content LIKE ?', value])
+           where(["book_sentences.raw_content #{op} ?", value])
          end
 
   SENT_MOD = {:mul => 'Birleştirme',
-              :div => 'Bölme'}.freeze
+              :div => 'Bölme',
+              :del => 'Çıkarma'}.freeze
   filter(:sentmod, :enum,
-         :prompt => '-- Cümle Değiştirme --',
-         :select => SENT_MOD.values) do |value|
+         :include_blank => '-- Cümle Değiştirme --',
+         :select => SENT_MOD.values) do |value, scope, grid|
+             t = grid.andand.translator.andand.first
              case SENT_MOD.invert[value]
              when :mul
-               group('book_sentences.id').having('(count(distinct source_sentences_book_sentences.id) > 1)')
+               x = BookTranslation.group(:target_id).having('count(source_id) > 1').select(:source_id).map(&:source_id)
+               where(:id => x)
              when :div
-               where(:id => group('source_sentences_book_sentences.id').having('(count(distinct target_sentences_book_sentences.id) > 1)').select('target_sentences_book_sentences.id').map(&:id))
+               scope.where(:id => BookTranslation.joins(:target_sentence).where(:book_sentences => Book.query_by(t)).group(:source_id).having('count(target_id) > 1').pluck(:source_id))
+             when :del
+               x = BookTranslation.group(:source_id).having('count(target_id) < 3').select(:source_id).map(&:source_id)
+               where(:id => x)
              end
           end
 
-=begin
-  MODIFICATIONS = {:add => 'Ekleme',
-                   :sub => 'Çıkarma',
-                   :mul => 'Birleştirme',
-                   :div => 'Bölme'}.freeze
-  filter(:modifications, :enum,
-         :prompt => '-- Değiştirme --',
+  SHIFTS = {#:passivisation        => 'Etken   -> Edilgen',
+            #:depassivisation      => 'Edilgen -> Etken',
+            :pronominalisation    => 'İsim    -> Zamir',
+            :depronominalisation  => 'Zamir   -> İsim',
+            :exclamation          => 'Ünlem ekleme',
+            :deexclamation        => 'Ünlem çıkarma',
+            :questionation        => 'Soru işareti ekleme',
+            :dequestionation      => 'Soru işareti çıkarma'#,
+            #:newspeak             => 'Yenikonuş'
+  }
+  filter(:shift, :enum,
+         :prompt => '-- Kayma --',
          :checkboxes => true,
-         :select => MODIFICATIONS.values) do |values|
-            joins(:source_sentences => :target_sentences).group('book_sentences.id').having(Array.new.tap { |have|
-              values.each { |value|
-                puts value.inspect, MODIFICATIONS.invert[value].inspect
-                case MODIFICATIONS.invert[value]
-                when :add
-                  have << '(length(book_sentences.content) >= sum(length(source_sentences_book_sentences.content)))'
-                when :sub
-                  have << '(length(book_sentences.content) =< sum(length(source_sentences_book_sentences.content)))'
-                when :mul
-                  have << '(count(distinct book_translations.source_id) > 1)'
-                when :div
-                  have << '(count(distinct target_sentences_book_sentences.id) > 1)'
-                end
-              }
-            }.join(' or '))
-          end
-=end
-
+         :select => SHIFTS.values) do |values, scope, grid|
 =begin
-  filter(:language, :enum,
-         :header => 'Dil',
-         :select => Book::LANGUAGES.values) do |name|
-           includes(:source_sentences).in_language(Book::LANGUAGES.first{|k,v| name == v}.first)
-         end
-=end
-
-=begin
-  filter(:sentence_length, :enum,
-         :header => 'Cümle Uzunluğu',
-         :select => ['Erek >= Kaynak', 'Kaynak >= Erek'] do |name|
-         end
-=end
-
-  column(:align, :header => 'Eş') do |model|
-    "<input name='align-#{model.id}' value='#{model.sources.map(&:source_id).join(' ')}'></input>"
-  end
-
-  # column(:translator, :header => 'Çevirmen')
-  column(:content, :header => 'Erek Metin') do |model|
-    "#{model.id}: #{model.raw_content}"
-=begin
-    colours = COLOURS.cycle
-    String.new.tap do |s|
-      s << "<ol>"
-      model.book_paragraph.book_sentences.each do |target_sentence|
-        t = target_sentence.raw_content
-        s << "<li style='background-color:##{colours.next}'>" << t.gsub('\\', '') << "</li>"
+      if values.include?('Yenikonuş')
+        s = scope.newspeak
+      else
+        s = scope
       end
-      s << "</ol>"
-    end
 =end
+      v = values.map{|vv| BookSentence::SHIFTS.index(SHIFTS.invert[vv])}.compact.inject(:|).to_i
+      unless v == 0
+        s = s.joins(:target_sentences).where("target_sentences_book_sentences.flags & #{v} != 0")
+      end
+      unless grid.translator.blank?
+        s = s.where(["target_sentences_book_sentences.translator IN (?)", grid.translator])
+      end
   end
+
   column(:source, :header => 'Kaynak Metin') do |model|
-    colours = COLOURS.cycle
+    ss = model.target_sentences.map(&:source_sentences).flatten.uniq.sort_by(&:id)
     String.new.tap do |s|
-      s << "<ul>"
-      model.source_sentences.each do |source_sentence|
-        t = source_sentence.raw_content
-        s << "<li style='list-style: none;background-color:##{colours.next}'> #{source_sentence.id}: " << t.gsub('\\', '') << "</li>"
+      s << '<ul>'
+      ss.each do |source_sentence|
+        s << "<li style='font-size: 14px;list-style: none;'>#{source_sentence.id}: " << source_sentence.raw_content.gsub('\\', '') << "</li>"
       end
       s << "</ul>"
     end
-
-=begin
-    colours = COLOURS.cycle
-    String.new.tap do |s|
-      s << "<ol>"
-      model.book_paragraph.book_sentences.each do |target_sentence|
-        t = target_sentence.raw_content
-        s << "<li style='background-color:##{colours.next}'>" << t.gsub('\\', '') << "</li>"
-      end
-      s << "</ol>"
-    end
-=end
   end
 
-=begin
-  column(:location, :header => 'Yer') { |model| model.pretty_location }
-=end
+  column(:content, :header => 'Erek Metin') do |model, grid|
+    if grid.translator.blank?
+      t = model.target_sentences.sort_by(&:id).group_by(&:translator)
+    else
+      t = model.target_sentences.select{|x| grid.translator.include?(x.translator)}.sort_by(&:id).group_by(&:translator)
+    end
 
-  def column_class(book_sentence)
-    'book_sentence'
+    String.new.tap do |s|
+      s << '<ul>'
+      t.reject{|k,v| k.nil? || k == 'XXX'}.each do |translator,target_sentences|
+        x = COLOURS[Book::TRANSLATORS.values.index(translator)]
+        c = target_sentences.map(&:raw_content).join(' ')
+        i = "#{target_sentences.map(&:sources).flatten.map(&:source_id).uniq.reject(&:blank?).join(',')}->#{target_sentences.map(&:id).uniq.reject(&:blank?).join(',')}"
+        s << "<li style='font-size: 14px;list-style: none;background-color:##{x}'> #{translator} [#{i}]: " << c.gsub('\\', '') << "</li>"
+      end
+      s << "</ul>"
+    end
   end
 end

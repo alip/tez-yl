@@ -20,10 +20,10 @@ class Book < ActiveRecord::Base
            :huxley  => 'Aldous Huxley',
            :uster   => 'Celâl Üster',
            :akgoren => 'Nuran Akgören',
-           :tosun   => 'Ümit Tosun',
+           :tosun   => 'Ümit Tosun', # Disabled
            :walter  => 'Michael Walter'}.freeze
   AUTHORS     = NAMES.select{|k,v| %i[orwell huxley].include?(k)}.freeze
-  TRANSLATORS = NAMES.reject{|k,v| %i[orwell huxley].include?(k)}.freeze
+  TRANSLATORS = NAMES.reject{|k,v| %i[orwell huxley tosun].include?(k)}.freeze
 
   LANGUAGES = {:english => 'İngilizce',
                :german  => 'Almanca',
