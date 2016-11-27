@@ -65,10 +65,12 @@ gem 'bilisim_sozlugu'
 
 # Stanford POS Tagger
 gem 'rjb'
-# gem 'ruby-nlp', :github => 'tiendung/ruby-nlp'
+#gem 'ruby-nlp', :github => 'tiendung/ruby-nlp', :branch => 'master' #:path => '/zen/tez/cts/lib/ruby-nlp'
 
 # Neat progressbar
 gem 'ruby-progressbar'
+
+#gem 'ruby-stackoverflow', '~> 0.0.3'
 
 # Dump in yaml
 gem 'yaml_db'
@@ -112,6 +114,9 @@ group :development, :test do
 end
 
 group :development do
+  # Draw UML Diagrams
+  gem 'railroady', '~> 1.4', '>= 1.4.2'
+
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console', '~> 2.0'
 
